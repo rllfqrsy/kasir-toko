@@ -1,15 +1,16 @@
-const CACHE_NAME = 'kelontong-pos-v16';
+const CACHE_NAME = 'kelontong-pos-v18';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
+  './receipt-print.html',
   './manifest.json',
-  './css/style.css?v=20261123.2',
+  './css/style.css?v=20261123.3',
+  './css/receipt-print.css',
   './vendor/xlsx.full.min.js',
-  './vendor/qz-tray.js',
   './icons/icon.svg',
   './js/db.js',
   './js/state.js',
-  './js/printer.js?v=20261123.8',
+  './js/printer.js?v=20261123.9',
   './js/pos.js?v=20261123.4',
   './js/products.js',
   './js/inventory.js',

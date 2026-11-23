@@ -715,7 +715,7 @@ const POS = {
 
       App.showToast(`Transaksi berhasil disimpan! No: ${transaction.invoiceNo}`, 'success');
 
-      // Direct Thermal Auto-Print via QZ Tray (No browser dialog, zero duplicates)
+      // Direct thermal auto-print through the configured printer service.
       if (typeof PrinterService !== 'undefined' && PrinterService.config.autoPrint) {
         PrinterService.printReceiptDirect(transaction, false).catch(pErr => {
           console.warn('Auto print error:', pErr);
@@ -853,8 +853,9 @@ const POS = {
         return true;
       }
 
-      const configured = PrinterService.config.transport === 'bluetooth' ||
-        Boolean(PrinterService.config.printerName);
+      const configured = PrinterService.config.transport === 'bluetooth'
+        ? Boolean(window.NativePrinterBridge)
+        : PrinterService.hasHelperConfig();
       if (forceDirect || configured) {
         const printed = await PrinterService.printReceiptDirect(this.lastTransaction, true);
         if (printed || forceDirect) return printed;

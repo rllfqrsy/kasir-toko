@@ -1,0 +1,103 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  color: #000;
+}
+
+body {
+  font: 10px/1.4 Consolas, "Courier New", monospace;
+}
+
+.thermal-receipt {
+  width: 58mm;
+  padding: 2mm;
+  background: #fff;
+}
+
+.thermal-receipt.receipt-80mm {
+  width: 80mm;
+}
+
+.receipt-header {
+  margin-bottom: 2mm;
+  text-align: center;
+}
+
+.receipt-store-name {
+  margin: 0 0 1mm;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.receipt-store-address,
+.receipt-store-phone {
+  margin: 0;
+  font-size: 10px;
+}
+
+.receipt-divider {
+  overflow: hidden;
+  margin: 1.5mm 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.receipt-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.receipt-meta div,
+.receipt-item-details,
+.receipt-calc-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 2mm;
+}
+
+.receipt-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5mm;
+  margin: 2mm 0;
+}
+
+.receipt-item-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.receipt-item-details span:last-child,
+.receipt-calc-row span:last-child {
+  text-align: right;
+}
+
+.receipt-footer {
+  text-align: center;
+  white-space: pre-line;
+}
+
+.font-medium,
+.font-bold {
+  font-weight: 700;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-lg {
+  font-size: 12px;
+}
+
+@page {
+  margin: 0;
+}

@@ -9,7 +9,7 @@
   <title>POS Toko Kelontong Qorsya - Kasir & Stok</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
-  <link rel="stylesheet" href="css/style.css?v=20261123.2">
+  <link rel="stylesheet" href="css/style.css?v=20261123.3">
 </head>
 
 <body class="pos-kiosk">
@@ -749,28 +749,31 @@
                 <label class="form-label" for="settingPrinterTransport">Metode Koneksi Printer:</label>
                 <select id="settingPrinterTransport" class="form-control"
                   onchange="PrinterService.updateTransportControls(this.value)">
-                  <option value="qz">QZ Tray (USB / jaringan)</option>
+                  <option value="helper">Web Printer Helper (printer komputer)</option>
                   <option value="bluetooth">Bluetooth (APK Android: BLE / SPP)</option>
                 </select>
               </div>
 
-              <div id="qzPrinterControls">
+              <div id="helperPrinterControls">
+                <p class="text-xs text-muted mb-3">
+                  Jalankan Web Printer Helper di komputer, lalu pilih konfigurasi printer yang sudah dibuat di aplikasi Helper.
+                  Printer Bluetooth pada komputer harus terpasang sebagai printer Windows dan dikonfigurasi di Helper.
+                </p>
                 <div class="form-group">
-                  <label class="form-label" for="settingPrinterSelect">Printer QZ Tray:</label>
-                  <select id="settingPrinterSelect" class="form-control">
-                    <option value="">Hubungkan QZ Tray untuk mencari printer</option>
+                  <label class="form-label" for="settingHelperPrinterConfig">Konfigurasi Printer Helper:</label>
+                  <select id="settingHelperPrinterConfig" class="form-control">
+                    <option value="">Hubungkan Helper untuk memuat konfigurasi</option>
                   </select>
                 </div>
                 <button type="button" class="btn btn-secondary btn-sm mb-3"
-                  onclick="PrinterService.refreshPrintersList()">↻ Muat Ulang Daftar Printer</button>
+                  onclick="PrinterService.refreshHelperConfigs()">↻ Muat Ulang Konfigurasi Printer</button>
               </div>
 
               <div id="bluetoothPrinterControls" style="display: none;">
                 <p id="bluetoothPrinterName" class="text-sm text-muted mb-2">Belum ada printer Bluetooth tersimpan.</p>
                 <p class="text-xs text-muted mb-3">
-                  Android memakai koneksi Bluetooth langsung. Di Windows, QZ Tray dapat memakai port COM dari printer
-                  Bluetooth SPP; pairing saja tidak selalu menyediakan port COM. Daftar dapat berisi port serial lain,
-                  jadi pilih port COM yang ditetapkan untuk printer.
+                  Pemindaian dan koneksi Bluetooth langsung tersedia di APK Android POS. Browser komputer tidak memindai perangkat Bluetooth;
+                  untuk printer komputer, gunakan metode Web Printer Helper.
                 </p>
                 <div class="form-group">
                   <label class="form-label" for="settingBluetoothPrinterSelect">Printer Bluetooth:</label>
@@ -780,16 +783,6 @@
                 </div>
                 <button type="button" id="bluetoothPrinterScanBtn" class="btn btn-secondary btn-sm mb-3"
                   onclick="PrinterService.scanBluetoothPrinters()">🔎 Cari Printer Bluetooth</button>
-                <div class="form-group">
-                  <label class="form-label" for="settingBluetoothBaudRate">Kecepatan port serial:</label>
-                  <select id="settingBluetoothBaudRate" class="form-control">
-                    <option value="9600">9600 baud</option>
-                    <option value="19200">19200 baud</option>
-                    <option value="38400">38400 baud</option>
-                    <option value="57600">57600 baud</option>
-                    <option value="115200">115200 baud</option>
-                  </select>
-                </div>
               </div>
 
               <div class="form-group">
@@ -800,20 +793,13 @@
                 </select>
               </div>
               <div class="form-group">
-                <label class="form-label" for="settingPrintModeSelect">Mode Cetak:</label>
-                <select id="settingPrintModeSelect" class="form-control">
-                  <option value="raw">ESC/POS Raw</option>
-                  <option value="html">Pixel HTML (QZ Tray)</option>
-                </select>
-              </div>
-              <div class="form-group">
                 <label><input type="checkbox" id="settingPrinterAutoPrint"> Cetak otomatis setelah transaksi</label>
               </div>
               <div class="form-group">
-                <label><input type="checkbox" id="settingPrinterCutPaper"> Potong kertas setelah mencetak</label>
+                <label><input type="checkbox" id="settingPrinterCutPaper"> Potong kertas (Bluetooth Android)</label>
               </div>
               <div class="form-group">
-                <label><input type="checkbox" id="settingPrinterOpenDrawer"> Buka laci kasir setelah mencetak</label>
+                <label><input type="checkbox" id="settingPrinterOpenDrawer"> Buka laci (Bluetooth Android)</label>
               </div>
 
               <div class="form-group">
@@ -1194,12 +1180,10 @@
 
   <!-- 2. SheetJS Local Vendor Bundle (Zero network needed) -->
   <script src="vendor/xlsx.full.min.js"></script>
-  <script src="vendor/qz-tray.js"></script>
-
   <!-- 3. Core POS Modules -->
   <script src="js/db.js"></script>
   <script src="js/state.js"></script>
-  <script src="js/printer.js?v=20261123.8"></script>
+  <script src="js/printer.js?v=20261123.9"></script>
   <script src="js/pos.js?v=20261123.4"></script>
   <script src="js/products.js"></script>
   <script src="js/inventory.js"></script>

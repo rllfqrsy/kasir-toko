@@ -33,13 +33,14 @@ Aplikasi Kasir (Point of Sale) modern, minimalis, ringan, dan cepat yang diranca
    - Tombol unduh **Template Excel (.xlsx)** siap pakai.
    - Export seluruh data produk, nilai stok modal & jual, serta riwayat penjualan ke Excel.
 
-4. **Cetak Thermal Bluetooth (Android Native / ESC/POS):**
+4. **Cetak Thermal (Web Printer Helper / Android Native):**
+   - Pada Windows, aplikasi web mengirim halaman struk ke [Web Printer Helper](https://github.com/zerlei/WebpagePrinterHelper) melalui service lokal. Instal dan jalankan Helper, buat konfigurasi berisi printer OS dan ukuran kertas, lalu pilih konfigurasi tersebut di **Pengaturan Toko → Printer Struk Thermal**.
+   - Atur lebar kertas dan margin printer di konfigurasi Helper agar sesuai dengan struk 58 mm atau 80 mm. Pemotong kertas dan laci kasir dikontrol oleh driver/printer pada alur Helper.
    - Aplikasi Android di folder `android/` memindai dan menghubungkan printer BLE atau printer klasik SPP melalui jembatan native, tanpa pemilih perangkat Web Bluetooth.
    - Pada menu **Pengaturan Toko → Printer Struk Thermal → Bluetooth**, tekan **Cari Printer Bluetooth**, pilih perangkat, lalu tekan **Hubungkan Printer**.
    - Izin Nearby devices dari Android diperlukan saat pemindaian pertama; izin ini dikelola Android dan tidak dapat dilewati oleh aplikasi.
-   - Di Windows, QZ Tray dapat mencari port COM dari printer Bluetooth SPP dan mengirim ESC/POS melalui port tersebut; printer yang terinstal sebagai printer Windows juga dapat dipilih melalui transport QZ Tray.
-   - Pairing Bluetooth Windows saja belum tentu menyediakan port COM. Untuk printer BLE atau jika port tidak muncul, gunakan APK Android POS. Browser biasa tidak dapat membaca daftar pairing Bluetooth secara langsung.
-   - Printer BLE harus menyediakan layanan GATT dengan karakteristik tulis ESC/POS. Printer klasik harus mendukung Serial Port Profile (SPP); di Android pasangkan melalui pengaturan Bluetooth, sedangkan di Windows pilih port COM yang ditetapkan untuk printer.
+   - Browser komputer tidak memindai Bluetooth; printer di Windows perlu terpasang sebagai printer sistem dan dipilih melalui konfigurasi Web Printer Helper. Bluetooth langsung tetap menggunakan APK Android POS.
+   - Printer BLE harus menyediakan layanan GATT dengan karakteristik tulis ESC/POS. Printer klasik harus mendukung Serial Port Profile (SPP); pasangkan melalui pengaturan Bluetooth Android sebelum dipilih di POS.
 
 5. **Stok Otomatis & Barang Masuk (Restock):**
    - Stok otomatis berkurang setiap transaksi kasir tersimpan.
@@ -96,7 +97,7 @@ Lalu buka browser Anda di: **`http://localhost:8085/`**
 Cukup klik ganda (double-click) file `index.html` di browser (Google Chrome, Microsoft Edge, Mozilla Firefox, dll).
 *Catatan: Seluruh fitur IndexedDB, kalkulasi kasir, dan SheetJS berfungsi langsung. Untuk caching PWA Service Worker yang optimal, jalankan melalui local server.*
 
-*Catatan printer Bluetooth: Browser web biasa tidak diberi akses untuk membaca pairing Bluetooth. Di desktop Windows, gunakan QZ Tray untuk printer yang menyediakan port COM SPP; koneksi BLE langsung tersedia melalui wrapper Android pada folder `android/`.*
+*Catatan cetak langsung: Cetak struk dari browser komputer memerlukan aplikasi Web Printer Helper aktif dan konfigurasi printer yang sudah dibuat di dalam Helper. Bluetooth langsung tersedia melalui wrapper Android pada folder `android/`.*
 
 ### Aplikasi Android untuk printer Bluetooth
 
@@ -109,12 +110,14 @@ Buka folder `android/` menggunakan Android Studio dengan JDK 17 dan Android SDK 
 ```
 web kasir/
 ├── index.html                 # Halaman utama aplikasi (Single Page App)
+├── receipt-print.html         # Halaman khusus untuk dirender oleh Web Printer Helper
 ├── manifest.json              # Konfigurasi PWA (Progressive Web App)
 ├── sw.js                      # Service Worker untuk offline caching
 ├── android/                   # Wrapper Android dan jembatan printer BLE/SPP native
 ├── README.md                  # Dokumentasi lengkap aplikasi
 ├── css/
-│   └── style.css              # Desain UI minimalis (putih & hijau emerald, print styles)
+│   ├── style.css              # Desain UI minimalis (putih & hijau emerald, print styles)
+│   └── receipt-print.css      # Gaya halaman cetak Web Printer Helper
 ├── js/
 │   ├── app.js                 # Inisialisasi utama, routing sidebar, toast & helper
 │   ├── db.js                  # Engine IndexedDB lokal & transaksi stok

@@ -1,28 +1,28 @@
 /**
- * QZ Tray Direct Thermal Printing Service (ESC/POS 58mm & 80mm)
- * Direct printing without browser print dialog, with zero duplicate print prevention,
- * offline resilience, auto-reconnect, and local configuration persistence.
+ * Web Printer Helper and native Android Bluetooth printing service.
  */
 const PrinterService = {
   isConnected: false,
   isConnecting: false,
   connectionPromise: null,
+  helperSocket: null,
+  helperRequestSequence: 0,
+  helperPendingRequests: new Map(),
   isBluetoothConnected: false,
   isBluetoothConnecting: false,
   bluetoothDeviceAddress: '',
   nativeRequestSequence: 0,
   nativePendingRequests: new Map(),
-  availablePrinters: [],
+  availablePrinterConfigs: [],
   config: {
-    transport: 'qz',
-    printerName: '',
+    transport: 'helper',
+    helperConfigId: '',
+    helperConfigName: '',
     bluetoothDeviceId: '',
     bluetoothDeviceName: '',
     bluetoothDeviceType: '',
-    bluetoothBaudRate: 9600,
     autoPrint: true,
     paperWidth: '58mm', // '58mm' (32 columns) or '80mm' (42/48 columns)
-    printMode: 'raw',   // 'raw' (ESC/POS bytes) or 'html' (Pixel HTML)
     cutPaper: true,
     openDrawer: false
   },
@@ -30,7 +30,6 @@ const PrinterService = {
 
   async init() {
     await this.loadConfig();
-    this.setupQZSecurity();
     if (this.config.transport === 'bluetooth') {
       this.updateStatusUI();
     } else {
@@ -38,19 +37,29 @@ const PrinterService = {
     }
   },
 
-  setupQZSecurity() {
-    if (!window.qz) return;
-
-    // Allow unsigned localhost connection without SSL cert error popups
-    qz.security.setCertificatePromise((resolve) => {
-      resolve();
-    });
-
-    qz.security.setSignaturePromise((toSign) => {
-      return (resolve) => {
-        resolve();
-      };
-    });
+  async discoverHelperWebSocketUrl() {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    try {
+      const response = await fetch('http://127.0.0.1:8847/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'get_websocket_server_port', uid: 0 }),
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const result = await response.json();
+      const port = Number(result.data);
+      if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new Error('Port WebSocket Helper tidak valid.');
+      }
+      return `ws://127.0.0.1:${port}`;
+    } catch (err) {
+      console.debug('Port Web Printer Helper tidak ditemukan; mencoba port default:', err);
+      return 'ws://127.0.0.1:8846';
+    } finally {
+      clearTimeout(timeout);
+    }
   },
 
   async loadConfig() {
@@ -58,6 +67,26 @@ const PrinterService = {
       const saved = await DB.getSetting('printer_config');
       if (saved) {
         this.config = { ...this.config, ...saved };
+        const requiresHelperMigration = saved.transport === 'qz' ||
+          (saved.transport === 'bluetooth' &&
+            (saved.bluetoothDeviceType === 'serial' || !window.NativePrinterBridge));
+        const hasObsoleteSettings = 'printerName' in saved ||
+          'printMode' in saved || 'bluetoothBaudRate' in saved;
+        delete this.config.printerName;
+        delete this.config.printMode;
+        delete this.config.bluetoothBaudRate;
+
+        if (requiresHelperMigration) {
+          this.config.transport = 'helper';
+          if (saved.bluetoothDeviceType === 'serial' || !window.NativePrinterBridge) {
+            this.config.bluetoothDeviceId = '';
+            this.config.bluetoothDeviceName = '';
+            this.config.bluetoothDeviceType = '';
+          }
+        }
+        if (requiresHelperMigration || hasObsoleteSettings) {
+          await DB.saveSetting('printer_config', this.config);
+        }
       }
     } catch (e) {
       console.warn('Gagal membaca konfigurasi printer:', e);
@@ -72,13 +101,13 @@ const PrinterService = {
     App.showToast('Pengaturan printer berhasil disimpan!', 'success');
   },
 
-  async initConnection(silent = true) {
-    if (!window.qz) {
-      if (!silent) App.showToast('Library QZ Tray tidak ditemukan di browser.', 'error');
-      return false;
-    }
+  hasHelperConfig() {
+    return this.config.helperConfigId !== '' && this.config.helperConfigId !== null &&
+      this.config.helperConfigId !== undefined;
+  },
 
-    if (this.isConnected && qz.websocket.isActive()) return true;
+  async initConnection(silent = true) {
+    if (this.helperSocket?.readyState === WebSocket.OPEN) return true;
     if (this.connectionPromise) return this.connectionPromise;
 
     this.isConnected = false;
@@ -86,29 +115,44 @@ const PrinterService = {
     this.updateStatusUI();
 
     this.connectionPromise = (async () => {
+      let socket;
       try {
-        if (!qz.websocket.isActive()) {
-          await qz.websocket.connect({
-            retries: 2,
-            delay: 1
-          });
-        }
+        const url = await this.discoverHelperWebSocketUrl();
+        socket = new WebSocket(url);
+        this.helperSocket = socket;
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Waktu koneksi ke Web Printer Helper habis.')), 5000);
+          socket.onopen = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+          socket.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error('Tidak dapat terhubung ke Web Printer Helper.'));
+          };
+          socket.onclose = () => {
+            clearTimeout(timeout);
+            if (!this.isConnected) reject(new Error('Koneksi Web Printer Helper ditutup.'));
+            this.handleHelperDisconnect();
+          };
+          socket.onmessage = event => this.handleHelperMessage(event.data);
+        });
 
         this.isConnected = true;
         this.isConnecting = false;
         this.updateStatusUI();
-
-        await this.refreshPrintersList();
+        await this.refreshHelperConfigs(false);
 
         if (!silent) {
-          App.showToast('Berhasil terhubung ke QZ Tray!', 'success');
+          App.showToast('Berhasil terhubung ke Web Printer Helper!', 'success');
         }
         return true;
       } catch (err) {
         this.isConnected = false;
+        if (socket && socket.readyState !== WebSocket.CLOSED) socket.close();
         if (!silent) {
-          console.warn('QZ Tray connection error:', err);
-          App.showToast('Gagal terhubung ke QZ Tray. Pastikan aplikasi QZ Tray aktif di komputer.', 'warning');
+          console.warn('Web Printer Helper connection error:', err);
+          App.showToast('Gagal terhubung ke Web Printer Helper. Pastikan aplikasinya aktif di komputer.', 'warning');
         }
         return false;
       } finally {
@@ -121,43 +165,97 @@ const PrinterService = {
     return this.connectionPromise;
   },
 
-  async refreshPrintersList() {
-    if (!this.isConnected || !window.qz) return [];
+  handleHelperDisconnect() {
+    this.isConnected = false;
+    this.helperSocket = null;
+    for (const [uid, pending] of this.helperPendingRequests) {
+      clearTimeout(pending.timeout);
+      pending.reject(new Error('Koneksi Web Printer Helper terputus.'));
+      this.helperPendingRequests.delete(uid);
+    }
+    this.updateStatusUI();
+  },
+
+  handleHelperMessage(rawMessage) {
+    try {
+      const response = JSON.parse(rawMessage);
+      const pending = this.helperPendingRequests.get(String(response.uid));
+      if (!pending) return;
+      clearTimeout(pending.timeout);
+      this.helperPendingRequests.delete(String(response.uid));
+      pending.resolve(response);
+    } catch (err) {
+      console.warn('Respons Web Printer Helper tidak valid:', err);
+    }
+  },
+
+  async sendHelperRequest(method, data = {}) {
+    const connected = await this.initConnection(true);
+    if (!connected || this.helperSocket?.readyState !== WebSocket.OPEN) {
+      throw new Error('Web Printer Helper tidak terhubung.');
+    }
+
+    const uid = String(++this.helperRequestSequence);
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.helperPendingRequests.delete(uid);
+        reject(new Error('Web Printer Helper tidak merespons permintaan.'));
+      }, 20000);
+      this.helperPendingRequests.set(uid, { resolve, reject, timeout });
+      try {
+        this.helperSocket.send(JSON.stringify({ uid: Number(uid), method, data }));
+      } catch (err) {
+        clearTimeout(timeout);
+        this.helperPendingRequests.delete(uid);
+        reject(err);
+      }
+    });
+  },
+
+  async refreshHelperConfigs(showError = true) {
+    if (!this.isConnected) {
+      const connected = await this.initConnection(!showError);
+      if (!connected) return [];
+    }
 
     try {
-      const list = await qz.printers.find();
-      this.availablePrinters = list || [];
-
-      // If no printer selected yet, pick system default or first printer
-      if (!this.config.printerName && this.availablePrinters.length > 0) {
-        try {
-          const defaultPrn = await qz.printers.getDefault();
-          this.config.printerName = defaultPrn || this.availablePrinters[0];
-        } catch (e) {
-          this.config.printerName = this.availablePrinters[0];
-        }
+      const response = await this.sendHelperRequest('get_all_configs');
+      if (!response.is_success) throw new Error(response.msg || 'Gagal membaca konfigurasi printer Helper.');
+      this.availablePrinterConfigs = Array.isArray(response.data) ? response.data : [];
+      if (!this.availablePrinterConfigs.some(
+        config => String(config.id) === String(this.config.helperConfigId)
+      )) {
+        this.config.helperConfigId = '';
+        this.config.helperConfigName = '';
       }
-
-      this.populatePrinterDropdown();
-      return this.availablePrinters;
+      this.populateHelperConfigDropdown();
+      this.updateStatusUI();
+      return this.availablePrinterConfigs;
     } catch (err) {
-      console.warn('Gagal mencari printer:', err);
+      console.warn('Gagal memuat konfigurasi Web Printer Helper:', err);
+      this.availablePrinterConfigs = [];
+      this.populateHelperConfigDropdown();
+      this.updateStatusUI();
+      if (showError) {
+        App.showToast(`Gagal memuat konfigurasi printer Helper: ${err.message || err}`, 'error');
+      }
       return [];
     }
   },
 
-  populatePrinterDropdown() {
-    const select = document.getElementById('settingPrinterSelect');
+  populateHelperConfigDropdown() {
+    const select = document.getElementById('settingHelperPrinterConfig');
     if (!select) return;
 
-    if (this.availablePrinters.length === 0) {
-      select.innerHTML = '<option value="">-- Tidak ada printer terdeteksi --</option>';
+    if (this.availablePrinterConfigs.length === 0) {
+      select.innerHTML = '<option value="">Buat konfigurasi printer di Helper, lalu muat ulang</option>';
       return;
     }
 
-    select.innerHTML = this.availablePrinters.map(p => {
-      const isSelected = p === this.config.printerName ? 'selected' : '';
-      return `<option value="${App.escapeHtml(p)}" ${isSelected}>${App.escapeHtml(p)}</option>`;
+    select.innerHTML = '<option value="">Pilih konfigurasi printer Helper</option>' +
+      this.availablePrinterConfigs.map(config => {
+        const isSelected = String(config.id) === String(this.config.helperConfigId) ? 'selected' : '';
+        return `<option value="${App.escapeHtml(config.id)}" ${isSelected}>${App.escapeHtml(config.name)}</option>`;
     }).join('');
   },
 
@@ -166,39 +264,27 @@ const PrinterService = {
       document.getElementById('settingPrinterTransport')?.value ||
       this.config.transport;
     const bluetoothControls = document.getElementById('bluetoothPrinterControls');
-    const qzControls = document.getElementById('qzPrinterControls');
-    const modeSelect = document.getElementById('settingPrintModeSelect');
+    const helperControls = document.getElementById('helperPrinterControls');
 
     if (bluetoothControls) bluetoothControls.style.display = selectedTransport === 'bluetooth' ? 'block' : 'none';
-    if (qzControls) qzControls.style.display = selectedTransport === 'qz' ? 'block' : 'none';
-    if (modeSelect) {
-      modeSelect.disabled = selectedTransport === 'bluetooth';
-      if (selectedTransport === 'bluetooth') modeSelect.value = 'raw';
-    }
+    if (helperControls) helperControls.style.display = selectedTransport === 'helper' ? 'block' : 'none';
 
     this.updateStatusUI();
   },
 
   async connectSelectedTransport() {
     const transport = document.getElementById('settingPrinterTransport')?.value || this.config.transport;
+    if (transport === 'helper') {
+      return this.initConnection(false);
+    }
     if (transport === 'bluetooth') {
       const printerSelect = document.getElementById('settingBluetoothPrinterSelect');
       const selectedAddress = printerSelect?.value;
       const selectedType = printerSelect?.selectedOptions[0]?.dataset.type || this.config.bluetoothDeviceType;
 
       if (!window.NativePrinterBridge) {
-        if (selectedType === 'serial' && selectedAddress) {
-          return this.connectSerialBluetooth(selectedAddress);
-        }
-        if (this.config.bluetoothDeviceType === 'serial' && this.config.bluetoothDeviceId &&
-            (!printerSelect || printerSelect.options.length <= 1)) {
-          return this.connectSerialBluetooth(this.config.bluetoothDeviceId);
-        }
-        if (printerSelect && printerSelect.options.length > 1 && !selectedAddress) {
-          App.showToast('Pilih port printer yang ditemukan terlebih dahulu.', 'warning');
-          return false;
-        }
-        return this.connectQzForBluetoothFallback();
+        App.showToast('Bluetooth langsung tersedia melalui APK Android. Di komputer, gunakan konfigurasi printer Web Printer Helper.', 'error');
+        return false;
       }
 
       if (printerSelect && printerSelect.options.length > 1 && !selectedAddress) {
@@ -218,7 +304,7 @@ const PrinterService = {
       }
       return this.connectBluetoothDevice(address, selectedType);
     }
-    return this.initConnection(false);
+    return false;
   },
 
   async pairBluetoothPrinter() {
@@ -264,9 +350,7 @@ const PrinterService = {
     if (!select) return;
 
     const options = devices.map(device => {
-      const label = device.type === 'serial'
-        ? `${device.name || 'Port Serial'} (${device.address})`
-        : `${device.name || 'Printer Bluetooth'} (${device.type === 'classic' ? 'SPP' : 'BLE'})`;
+      const label = `${device.name || 'Printer Bluetooth'} (${device.type === 'classic' ? 'SPP' : 'BLE'})`;
       const selected = device.address === this.config.bluetoothDeviceId ? 'selected' : '';
       return `<option value="${App.escapeHtml(device.address)}" data-type="${device.type}" ${selected}>${App.escapeHtml(label)}</option>`;
     });
@@ -278,7 +362,8 @@ const PrinterService = {
 
   async scanBluetoothPrinters() {
     if (!window.NativePrinterBridge) {
-      return this.connectQzForBluetoothFallback();
+      App.showToast('Pemindaian Bluetooth langsung hanya tersedia melalui APK Android POS.', 'error');
+      return false;
     }
 
     this.isBluetoothConnecting = true;
@@ -303,116 +388,7 @@ const PrinterService = {
     }
   },
 
-  async connectQzForBluetoothFallback() {
-    App.showToast(
-      'Mencari port Bluetooth dan printer Windows melalui QZ Tray...',
-      'info'
-    );
-
-    const connected = await this.initConnection(false);
-    if (!connected) {
-      App.showToast('Jalankan QZ Tray. Untuk koneksi Bluetooth langsung tanpa QZ Tray, gunakan APK Android POS.', 'error');
-      return false;
-    }
-
-    if (window.qz?.serial?.findPorts) {
-      try {
-        const serialPorts = await qz.serial.findPorts();
-        if (Array.isArray(serialPorts) && serialPorts.length) {
-          const devices = serialPorts.map(port => ({
-            address: port,
-            name: `Port Serial ${port}`,
-            type: 'serial'
-          }));
-          this.populateBluetoothPrinterDropdown(devices);
-          App.showToast(
-            `${serialPorts.length} port serial ditemukan. Pilih COM yang digunakan printer, lalu tekan Hubungkan Printer.`,
-            'success'
-          );
-          return devices;
-        }
-      } catch (err) {
-        console.warn('Gagal mencari port serial melalui QZ Tray:', err);
-      }
-    }
-
-    const printers = await this.refreshPrintersList();
-    if (!printers.length) {
-      App.showToast(
-        'Tidak ada port COM atau printer Windows ditemukan. Pasangkan printer sebagai port serial (SPP) atau instal driver printer Windows.',
-        'warning'
-      );
-      return false;
-    }
-
-    const transportSelect = document.getElementById('settingPrinterTransport');
-    if (transportSelect) transportSelect.value = 'qz';
-    this.config.transport = 'qz';
-    this.updateTransportControls('qz');
-    App.showToast(
-      'Printer OS ditemukan. Pilih printer pada daftar QZ Tray, lalu simpan pengaturan printer.',
-      'success'
-    );
-    return printers;
-  },
-
-  async connectSerialBluetooth(port) {
-    if (!port || !window.qz?.serial) {
-      App.showToast('QZ Tray tidak menyediakan koneksi port serial pada perangkat ini.', 'error');
-      return false;
-    }
-
-    if (this.isBluetoothConnected && port === this.bluetoothDeviceAddress) {
-      this.updateStatusUI();
-      return true;
-    }
-
-    this.isBluetoothConnecting = true;
-    this.updateStatusUI();
-    try {
-      const connected = await this.initConnection(false);
-      if (!connected) return false;
-
-      await qz.serial.openPort(port, {
-        baudRate: Number(this.config.bluetoothBaudRate) || 9600,
-        dataBits: 8,
-        stopBits: 1,
-        parity: 'NONE',
-        flowControl: 'NONE'
-      });
-
-      const select = document.getElementById('settingBluetoothPrinterSelect');
-      const selectedName = select?.value === port
-        ? select.selectedOptions[0]?.textContent.split(' (')[0]
-        : '';
-      this.config = {
-        ...this.config,
-        transport: 'bluetooth',
-        bluetoothDeviceId: port,
-        bluetoothDeviceName: selectedName || `Printer Bluetooth ${port}`,
-        bluetoothDeviceType: 'serial'
-      };
-      this.isBluetoothConnected = true;
-      this.bluetoothDeviceAddress = port;
-      await DB.saveSetting('printer_config', this.config);
-      this.updateStatusUI();
-      App.showToast(`Terhubung ke printer Bluetooth melalui ${port}.`, 'success');
-      return true;
-    } catch (err) {
-      this.isBluetoothConnected = false;
-      console.error('Gagal membuka port serial printer:', err);
-      App.showToast(`Gagal membuka ${port}: ${err.message || err}`, 'error');
-      return false;
-    } finally {
-      this.isBluetoothConnecting = false;
-      this.updateStatusUI();
-    }
-  },
-
   async restoreBluetoothConnection() {
-    if (this.config.bluetoothDeviceType === 'serial' && this.config.bluetoothDeviceId) {
-      return this.connectSerialBluetooth(this.config.bluetoothDeviceId);
-    }
     if (!window.NativePrinterBridge ||
         !/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(this.config.bluetoothDeviceId)) {
       this.updateStatusUI();
@@ -482,16 +458,6 @@ const PrinterService = {
     let binary = '';
     for (const byte of bytes) binary += String.fromCharCode(byte);
     const base64 = btoa(binary);
-    if (this.config.bluetoothDeviceType === 'serial') {
-      if (!window.qz?.serial || !this.isConnected || !qz.websocket.isActive()) {
-        throw new Error('Koneksi QZ Tray atau port serial printer terputus.');
-      }
-      await qz.serial.sendData(this.config.bluetoothDeviceId, {
-        type: 'BASE64',
-        data: base64
-      });
-      return;
-    }
     if (!window.NativePrinterBridge) {
       throw new Error('Bluetooth langsung hanya tersedia melalui aplikasi Android POS.');
     }
@@ -509,9 +475,6 @@ const PrinterService = {
   },
 
   async disconnectBluetoothPrinter() {
-    if (this.config.bluetoothDeviceType === 'serial' && window.qz?.serial && this.bluetoothDeviceAddress) {
-      await qz.serial.closePort(this.bluetoothDeviceAddress);
-    }
     if (window.NativePrinterBridge?.disconnectPrinter) {
       window.NativePrinterBridge.disconnectPrinter();
     }
@@ -529,30 +492,34 @@ const PrinterService = {
     const isBluetooth = transport === 'bluetooth';
     const connected = isBluetooth ? this.isBluetoothConnected : this.isConnected;
     const connecting = isBluetooth ? this.isBluetoothConnecting : this.isConnecting;
-    const printerName = isBluetooth
+    const selectedPrinterName = isBluetooth
       ? this.config.bluetoothDeviceName || 'Printer BLE'
-      : this.config.printerName || 'Printer Aktif';
+      : this.config.helperConfigName || 'Printer Aktif';
 
     if (badge) {
       badge.className = `status-badge ${connected ? 'status-online' : 'status-offline'}`;
       const state = connected ? 'Terhubung' : connecting ? 'Menghubungkan...' : 'Tidak Terhubung';
-      badge.innerHTML = `<span class="status-dot"></span> ${isBluetooth ? 'Bluetooth' : 'QZ Tray'}: ${state}`;
+      badge.innerHTML = `<span class="status-dot"></span> ${isBluetooth ? 'Bluetooth' : 'Web Printer Helper'}: ${state}`;
     }
 
     if (statusText) {
-      const transportName = isBluetooth ? 'Bluetooth' : 'QZ Tray';
+      const transportName = isBluetooth ? 'Bluetooth' : 'Web Printer Helper';
       if (connected) {
-        statusText.textContent = `${transportName} terhubung. Printer: ${printerName}.`;
+        statusText.textContent = !isBluetooth && !this.hasHelperConfig()
+          ? 'Web Printer Helper terhubung. Pilih konfigurasi printer lalu simpan pengaturan.'
+          : `${transportName} terhubung. ${isBluetooth ? 'Printer' : 'Konfigurasi'}: ${selectedPrinterName}.`;
       } else if (connecting) {
         statusText.textContent = `Sedang menghubungkan ${transportName}...`;
       } else if (isBluetooth && !window.NativePrinterBridge) {
-        statusText.textContent = 'Gunakan QZ Tray untuk mencari port COM Bluetooth (SPP) atau printer Windows. Printer Bluetooth yang hanya tertaut tidak selalu menyediakan port COM.';
+        statusText.textContent = 'Bluetooth langsung hanya tersedia melalui APK Android POS. Pada komputer, gunakan printer yang terpasang di Windows melalui Web Printer Helper.';
       } else if (isBluetooth && !this.config.bluetoothDeviceId) {
         statusText.textContent = 'Pindai printer Bluetooth, pilih perangkat, lalu hubungkan.';
+      } else if (!isBluetooth && !this.config.helperConfigId) {
+        statusText.textContent = 'Hubungkan Helper, pilih konfigurasi printer, lalu simpan pengaturan.';
       } else {
         statusText.textContent = isBluetooth
-          ? `Printer ${printerName} belum terhubung. Tekan Hubungkan Printer Bluetooth.`
-          : 'QZ Tray tidak terhubung. Pilih Bluetooth dan gunakan APK Android POS untuk cetak langsung.';
+          ? `Printer ${selectedPrinterName} belum terhubung. Tekan Hubungkan Printer Bluetooth.`
+          : 'Web Printer Helper tidak terhubung. Pastikan aplikasi berjalan di komputer ini.';
       }
     }
 
@@ -563,20 +530,18 @@ const PrinterService = {
     }
 
     if (connectBtn) {
-      connectBtn.textContent = isBluetooth && !window.NativePrinterBridge && this.config.bluetoothDeviceType !== 'serial'
-        ? '🔌 Cari via QZ Tray'
+      connectBtn.textContent = isBluetooth && !window.NativePrinterBridge
+        ? '🔌 Bluetooth tidak tersedia'
         : connected
-          ? `🔄 ${isBluetooth ? 'Sambungkan Ulang' : 'Refresh Printer'}`
-          : `🔌 Hubungkan ${isBluetooth ? (this.config.bluetoothDeviceType === 'serial' ? 'Port Bluetooth' : 'Printer Bluetooth') : 'QZ Tray'}`;
-      connectBtn.disabled = connecting || (isBluetooth && !window.NativePrinterBridge && !window.qz);
+          ? `🔄 ${isBluetooth ? 'Sambungkan Ulang' : 'Muat Ulang Konfigurasi'}`
+          : `🔌 Hubungkan ${isBluetooth ? 'Printer Bluetooth' : 'Web Printer Helper'}`;
+      connectBtn.disabled = connecting || (isBluetooth && !window.NativePrinterBridge);
     }
 
     const bluetoothScanBtn = document.getElementById('bluetoothPrinterScanBtn');
     if (bluetoothScanBtn) {
-      bluetoothScanBtn.textContent = window.NativePrinterBridge
-        ? '🔎 Cari Printer Bluetooth'
-        : '🔎 Cari Printer via QZ Tray';
-      bluetoothScanBtn.disabled = connecting || (!window.NativePrinterBridge && !window.qz);
+      bluetoothScanBtn.textContent = '🔎 Cari Printer Bluetooth';
+      bluetoothScanBtn.disabled = connecting || !window.NativePrinterBridge;
     }
   },
 
@@ -705,8 +670,48 @@ const PrinterService = {
   },
 
   // -------------------------------------------------------------
-  // DIRECT PRINT EXECUTION (ESC/POS RAW OR ISOLATED HTML PIXEL)
+  // WEB PRINTER HELPER PRINTING
   // -------------------------------------------------------------
+
+  createReceiptPageUrl(receiptHtml) {
+    const bytes = new TextEncoder().encode(receiptHtml);
+    let binary = '';
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    }
+    const encodedHtml = btoa(binary)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+    const receiptUrl = new URL('receipt-print.html', window.location.href);
+    receiptUrl.hash = encodedHtml;
+    return receiptUrl.href;
+  },
+
+  async printHtmlWithHelper(receiptHtml) {
+    if (!this.hasHelperConfig()) {
+      await this.refreshHelperConfigs(false);
+    }
+    if (!this.hasHelperConfig()) {
+      throw new Error('Pilih dan simpan konfigurasi printer Web Printer Helper terlebih dahulu.');
+    }
+
+    const config = this.availablePrinterConfigs.find(
+      item => String(item.id) === String(this.config.helperConfigId)
+    );
+    const rawConfigId = config ? config.id : this.config.helperConfigId;
+    const configId = Number.isFinite(Number(rawConfigId)) ? Number(rawConfigId) : rawConfigId;
+    const response = await this.sendHelperRequest('print_page', {
+      id: 0,
+      config_id: configId,
+      page_loaded_or_js_request: 'PAGE_LOADED',
+      page_url: this.createReceiptPageUrl(receiptHtml)
+    });
+    if (!response.is_success) {
+      throw new Error(response.msg || 'Web Printer Helper gagal mengirim struk ke printer.');
+    }
+    return response;
+  },
 
   async printReceiptDirect(tx, forceReprint = false) {
     if (!tx || !tx.invoiceNo) {
@@ -724,9 +729,7 @@ const PrinterService = {
     if (this.config.transport === 'bluetooth') {
       try {
         if (!this.isBluetoothConnected) {
-          const connected = this.config.bluetoothDeviceType === 'serial'
-            ? await this.connectSerialBluetooth(this.config.bluetoothDeviceId)
-            : await this.connectBluetoothDevice();
+          const connected = await this.connectBluetoothDevice();
           if (!connected) return false;
         }
 
@@ -744,76 +747,19 @@ const PrinterService = {
       }
     }
 
-    // Try connecting to QZ Tray if not connected yet
-    if (!this.isConnected || !qz.websocket.isActive()) {
-      this.isConnected = false;
-      const ok = await this.initConnection(true);
-      if (!ok) {
-        console.warn('QZ Tray tidak aktif saat print receipt');
-        App.showToast('Gagal terhubung ke QZ Tray. Periksa aplikasi QZ Tray dan printer yang dipilih.', 'error');
-        return false;
-      }
-    }
-
-    if (!this.config.printerName) {
-      App.showToast('Printer belum dipilih! Silakan pilih printer di Pengaturan Toko.', 'warning');
-      return false;
-    }
-
     try {
-      const qzConfig = qz.configs.create(this.config.printerName, {
-        encoding: 'Cp437',
-        units: 'mm',
-        colorType: 'monochrome'
-      });
-
-      if (this.config.printMode === 'raw') {
-        // Mode 1: Pure ESC/POS Commands (Instant, authentic thermal print)
-        const commands = this.buildEscPosReceipt(tx);
-        await qz.print(qzConfig, commands);
-      } else {
-        // Mode 2: HTML Pixel (ISOLATED ONLY TO THE RECEIPT ELEMENT!)
-        const receiptHtml = POS.generateReceiptHtml(tx);
-        const wrappedHtml = `
-          <!DOCTYPE html>
-          <html>
-            <head>z
-              <meta charset="utf-8">
-              <style>
-                body { margin: 0; padding: 0; background: #fff; font-family: monospace; font-size: 12px; }
-                .thermal-receipt { width: ${this.config.paperWidth === '80mm' ? '72mm' : '48mm'}; margin: 0 auto; padding: 4px; }
-                .receipt-divider { overflow: hidden; white-space: nowrap; }
-                .receipt-calc-row { display: flex; justify-content: space-between; }
-                .receipt-meta div { display: flex; justify-content: space-between; }
-                .receipt-item-details { display: flex; justify-content: space-between; }
-                .text-center { text-align: center; }
-                .font-bold { font-weight: bold; }
-              </style>
-            </head>
-            <body>
-              ${receiptHtml}
-            </body>
-          </html>
-        `;
-
-        await qz.print(qzConfig, [{
-          type: 'pixel',
-          format: 'html',
-          flavor: 'plain',
-          data: wrappedHtml
-        }]);
-      }
+      await this.printHtmlWithHelper(POS.generateReceiptHtml(tx));
 
       // Mark invoice as printed to avoid duplicates
       this.printedInvoices.add(tx.invoiceNo);
 
       State.playSound('success');
-      App.showToast(`Nota ${tx.invoiceNo} berhasil dicetak langsung ke ${this.config.printerName}!`, 'success');
+      App.showToast(`Nota ${tx.invoiceNo} berhasil dikirim ke ${this.config.helperConfigName || 'Web Printer Helper'}!`, 'success');
       return true;
     } catch (err) {
-      console.error('QZ Direct print error:', err);
+      console.error('Web Printer Helper print error:', err);
       State.playSound('error');
-      App.showToast(`Gagal mencetak ke printer "${this.config.printerName}": ${err.message || err}`, 'error');
+      App.showToast(`Gagal mencetak struk: ${err.message || err}`, 'error');
       return false;
     }
   },
@@ -826,21 +772,22 @@ const PrinterService = {
     const isBluetooth = this.config.transport === 'bluetooth';
     try {
       if (isBluetooth && !this.isBluetoothConnected) {
-        const connected = this.config.bluetoothDeviceType === 'serial'
-          ? await this.connectSerialBluetooth(this.config.bluetoothDeviceId)
-          : await this.connectBluetoothDevice();
+        const connected = await this.connectBluetoothDevice();
         if (!connected) return;
       } else if (!isBluetooth && !this.isConnected) {
         const ok = await this.initConnection(false);
         if (!ok) return;
       }
 
-      if (!isBluetooth && !this.config.printerName) {
-        App.showToast('Pilih printer terlebih dahulu sebelum uji cetak!', 'warning');
+      if (!isBluetooth && !this.hasHelperConfig()) {
+        await this.refreshHelperConfigs(false);
+      }
+      if (!isBluetooth && !this.hasHelperConfig()) {
+        App.showToast('Pilih konfigurasi printer Web Printer Helper terlebih dahulu!', 'warning');
         return;
       }
 
-      const selectedPrinter = isBluetooth ? this.config.bluetoothDeviceName : this.config.printerName;
+      const selectedPrinter = isBluetooth ? this.config.bluetoothDeviceName : this.config.helperConfigName;
       App.showToast(`Mengirim uji cetak ke ${selectedPrinter}...`, 'info');
 
       const is80mm = this.config.paperWidth === '80mm';
@@ -848,45 +795,55 @@ const PrinterService = {
       const divider = '-'.repeat(maxChars);
       const doubleDivider = '='.repeat(maxChars);
 
-      const ESC = '\x1B';
-      const GS = '\x1D';
-
-      const commands = [
-        ESC + '@',                                     // Init
-        ESC + 'a' + '\x01',                            // Center
-        ESC + 'E' + '\x01',                            // Bold ON
-        GS + '!' + '\x11',                             // Double size
-        'TEST PRINT POS\n',
-        GS + '!' + '\x00',                             // Normal
-        (State.storeSettings.storeName || 'TOKO QORSYA') + '\n',
-        ESC + 'E' + '\x00',                            // Bold OFF
-        doubleDivider + '\n',
-        ESC + 'a' + '\x00',                            // Left
-        'Waktu: ' + new Date().toLocaleString('id-ID') + '\n',
-        'Printer: ' + (isBluetooth ? this.config.bluetoothDeviceName : this.config.printerName) + '\n',
-        'Lebar Kertas: ' + this.config.paperWidth + ` (${maxChars} kolom)\n`,
-        'Mode Cetak: ' + (isBluetooth || this.config.printMode === 'raw' ? 'ESC/POS Raw' : 'Pixel HTML') + '\n',
-        divider + '\n',
-        '12345678901234567890123456789012' + (is80mm ? '3456789012' : '') + '\n',
-        doubleDivider + '\n',
-        ESC + 'a' + '\x01',                            // Center
-        'Printer Thermal Berfungsi Normal!\n',
-        'Siap digunakan untuk transaksi kasir.\n',
-        '\n\n\n',
-        this.config.cutPaper ? GS + 'V' + '\x41' + '\x03' : ''
-      ];
-
       if (isBluetooth) {
+        const ESC = '\x1B';
+        const GS = '\x1D';
+        const commands = [
+          ESC + '@',
+          ESC + 'a' + '\x01',
+          ESC + 'E' + '\x01',
+          GS + '!' + '\x11',
+          'TEST PRINT POS\n',
+          GS + '!' + '\x00',
+          (State.storeSettings.storeName || 'TOKO QORSYA') + '\n',
+          ESC + 'E' + '\x00',
+          doubleDivider + '\n',
+          ESC + 'a' + '\x00',
+          'Waktu: ' + new Date().toLocaleString('id-ID') + '\n',
+          'Printer: ' + this.config.bluetoothDeviceName + '\n',
+          'Lebar Kertas: ' + this.config.paperWidth + ` (${maxChars} kolom)\n`,
+          divider + '\n',
+          '12345678901234567890123456789012' + (is80mm ? '3456789012' : '') + '\n',
+          doubleDivider + '\n',
+          ESC + 'a' + '\x01',
+          'Printer Thermal Berfungsi Normal!\n',
+          'Siap digunakan untuk transaksi kasir.\n',
+          '\n\n\n',
+          this.config.cutPaper ? GS + 'V' + '\x41' + '\x03' : ''
+        ];
         await this.writeBluetoothBytes(this.encodeEscPos(commands));
       } else {
-        const qzConfig = qz.configs.create(this.config.printerName, {
-          encoding: 'Cp437'
-        });
-        await qz.print(qzConfig, commands);
+        const testHtml = `
+          <div class="thermal-receipt ${is80mm ? 'receipt-80mm' : 'receipt-58mm'}">
+            <div class="receipt-header text-center">
+              <h2 class="receipt-store-name">TEST PRINT POS</h2>
+              <p>${App.escapeHtml(State.storeSettings.storeName || 'TOKO QORSYA')}</p>
+            </div>
+            <div class="receipt-divider">${doubleDivider}</div>
+            <div>Waktu: ${App.escapeHtml(new Date().toLocaleString('id-ID'))}</div>
+            <div>Konfigurasi: ${App.escapeHtml(selectedPrinter || '')}</div>
+            <div>Lebar kertas: ${this.config.paperWidth} (${maxChars} kolom)</div>
+            <div class="receipt-divider">${divider}</div>
+            <div>12345678901234567890123456789012${is80mm ? '3456789012' : ''}</div>
+            <div class="receipt-divider">${doubleDivider}</div>
+            <div class="receipt-footer text-center">Printer thermal berfungsi normal!</div>
+          </div>
+        `;
+        await this.printHtmlWithHelper(testHtml);
       }
 
       State.playSound('success');
-      App.showToast(`Uji cetak berhasil terkirim ke printer ${isBluetooth ? this.config.bluetoothDeviceName : this.config.printerName}!`, 'success');
+      App.showToast(`Uji cetak berhasil dikirim ke printer ${selectedPrinter}!`, 'success');
     } catch (err) {
       console.error('Test print failed:', err);
       State.playSound('error');

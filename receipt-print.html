@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cetak Struk</title>
+  <link rel="stylesheet" href="css/receipt-print.css">
+</head>
+<body>
+  <main id="receipt"></main>
+  <script>
+    try {
+      const base64 = location.hash.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+      const encodedHtml = base64 + '='.repeat((4 - base64.length % 4) % 4);
+      const binary = atob(encodedHtml);
+      const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+      document.getElementById('receipt').innerHTML = new TextDecoder().decode(bytes);
+    } catch (error) {
+      console.error('Gagal memuat konten struk:', error);
+      document.getElementById('receipt').textContent = 'Konten struk tidak valid.';
+    }
+  </script>
+</body>
+</html>

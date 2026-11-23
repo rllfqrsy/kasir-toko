@@ -278,6 +278,7 @@ const Products = {
 
     modal.classList.add('modal-open');
     setTimeout(() => {
+      document.querySelector('#productFormModal .modal-body')?.scrollTo({ top: 0 });
       document.getElementById('prodModalBarcode')?.focus();
     }, 100);
   },
@@ -317,6 +318,7 @@ const Products = {
 
     modal.classList.add('modal-open');
     setTimeout(() => {
+      document.querySelector('#productFormModal .modal-body')?.scrollTo({ top: 0 });
       document.getElementById('prodModalName')?.focus();
     }, 100);
   },

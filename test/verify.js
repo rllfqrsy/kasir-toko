@@ -39,10 +39,13 @@ if (syntaxErrors > 0) {
 
 console.log('\n=== TEST 1B: Bluetooth ESC/POS Encoding & Native Bridge ===');
 const printerSandbox = {
-  window: {},
+  window: { location: { href: 'http://localhost:8085/index.html' } },
   navigator: {},
   document: { getElementById: () => null },
   btoa: value => Buffer.from(value, 'binary').toString('base64'),
+  TextEncoder,
+  URL,
+  WebSocket: { OPEN: 1, CLOSED: 3 },
   setTimeout,
   clearTimeout,
   console
@@ -77,70 +80,55 @@ if (JSON.stringify(transmittedBytes) !== JSON.stringify(expectedBytes)) {
 console.log('  ✓ ESC/POS text is converted to printer-safe single-byte output.');
 console.log('  ✓ Receipt bytes are passed intact to the Android printer bridge.');
 
-let serialPayload = null;
-printer.config.bluetoothDeviceType = 'serial';
-printer.config.bluetoothDeviceId = 'COM5';
-printer.isConnected = true;
-printerSandbox.window.qz = {
-  serial: {
-    sendData: async (port, data) => {
-      serialPayload = { port, data };
-    }
-  },
-  websocket: { isActive: () => true }
+let migratedPrinterConfig = null;
+printerSandbox.DB = {
+  getSetting: async () => ({ transport: 'qz', printerName: 'Legacy printer', printMode: 'raw' }),
+  saveSetting: async (key, value) => {
+    if (key === 'printer_config') migratedPrinterConfig = value;
+  }
 };
-printerSandbox.qz = printerSandbox.window.qz;
-await printer.writeBluetoothBytes(new Uint8Array(expectedBytes));
+await printer.loadConfig();
 if (
-  serialPayload?.port !== 'COM5' ||
-  serialPayload?.data?.type !== 'BASE64' ||
-  JSON.stringify(Array.from(Buffer.from(serialPayload.data.data, 'base64'))) !== JSON.stringify(expectedBytes)
+  printer.config.transport !== 'helper' ||
+  printer.config.printerName !== undefined ||
+  migratedPrinterConfig?.transport !== 'helper'
 ) {
-  console.error('Serial port payload mismatch:', serialPayload);
+  console.error('Legacy QZ printer configuration was not migrated:', printer.config);
   process.exit(1);
 }
-console.log('  ✓ Receipt bytes are passed intact to the QZ Tray serial port.');
+console.log('  ✓ Legacy QZ settings migrate to Web Printer Helper.');
 
-let openedSerialPort = null;
-printerSandbox.window.qz.serial.findPorts = async () => ['COM5'];
-printerSandbox.window.qz.serial.openPort = async (port, options) => {
-  openedSerialPort = { port, options };
+let helperRequest = null;
+printer.config.helperConfigId = '12';
+printer.config.helperConfigName = 'Printer Thermal';
+printer.availablePrinterConfigs = [{ id: 12, name: 'Printer Thermal' }];
+printer.isConnected = true;
+printer.helperSocket = {
+  readyState: printerSandbox.WebSocket.OPEN,
+  send(payload) {
+    helperRequest = JSON.parse(payload);
+    printer.handleHelperMessage(JSON.stringify({
+      uid: helperRequest.uid,
+      is_success: true
+    }));
+  }
 };
-printerSandbox.App = {
-  escapeHtml: value => String(value),
-  showToast: () => {}
-};
-printerSandbox.DB = { saveSetting: async () => {} };
-const bluetoothSelect = { value: '', options: [{}], selectedOptions: [], innerHTML: '' };
-printerSandbox.document.getElementById = id => {
-  if (id === 'settingBluetoothPrinterSelect') return bluetoothSelect;
-  if (id === 'settingPrinterTransport') return { value: 'bluetooth' };
-  return null;
-};
-printerSandbox.window.NativePrinterBridge = undefined;
-printer.initConnection = async () => true;
-printer.config = {
-  ...printer.config,
-  transport: 'bluetooth',
-  bluetoothDeviceId: '',
-  bluetoothDeviceType: '',
-  bluetoothBaudRate: 19200
-};
-printer.isBluetoothConnected = false;
-const discoveredPorts = await printer.connectQzForBluetoothFallback();
-if (!Array.isArray(discoveredPorts) || !bluetoothSelect.innerHTML.includes('COM5')) {
-  console.error('Bluetooth serial port discovery failed:', discoveredPorts);
+const helperResult = await printer.printHtmlWithHelper('<p>Struk uji ☕</p>');
+const helperUrl = new URL(helperRequest.data.page_url);
+const encodedHtml = helperUrl.hash.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+const decodedHtml = Buffer.from(encodedHtml, 'base64').toString('utf8');
+if (
+  helperRequest.method !== 'print_page' ||
+  helperRequest.data.config_id !== 12 ||
+  helperRequest.data.page_loaded_or_js_request !== 'PAGE_LOADED' ||
+  helperUrl.pathname !== '/receipt-print.html' ||
+  decodedHtml !== '<p>Struk uji ☕</p>' ||
+  !helperResult.is_success
+) {
+  console.error('Web Printer Helper print request mismatch:', helperRequest);
   process.exit(1);
 }
-bluetoothSelect.value = 'COM5';
-bluetoothSelect.options = [{}, {}];
-bluetoothSelect.selectedOptions = [{ dataset: { type: 'serial' }, textContent: 'Port Serial COM5 (COM5)' }];
-const serialConnected = await printer.connectSelectedTransport();
-if (!serialConnected || openedSerialPort?.port !== 'COM5' || openedSerialPort.options.baudRate !== 19200) {
-  console.error('Bluetooth serial connection failed:', openedSerialPort);
-  process.exit(1);
-}
-console.log('  ✓ Windows COM ports are discovered and opened at the selected baud rate.');
+console.log('  ✓ Receipt HTML is sent to the selected Web Printer Helper configuration.');
 
 console.log('\n=== TEST 2: Excel & SheetJS 300+ Products Test ===');
 const XLSX = require('../vendor/xlsx.full.min.js');
