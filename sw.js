@@ -1,9 +1,9 @@
-const CACHE_NAME = 'kelontong-pos-v7';
+const CACHE_NAME = 'kelontong-pos-v8';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/style.css?v=20261123.1',
+  './css/style.css?v=20261123.2',
   './vendor/xlsx.full.min.js',
   './vendor/qz-tray.js',
   './icons/icon.svg',
