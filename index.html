@@ -741,6 +741,96 @@
             </button>
           </form>
         </div>
+
+        <div class="card mt-3" style="max-width: 650px;">
+            <form onsubmit="App.handleSavePrinterConfig(event)">
+              <h3 class="font-semibold mb-3">Printer Struk Thermal</h3>
+              <div class="form-group">
+                <label class="form-label" for="settingPrinterTransport">Metode Koneksi Printer:</label>
+                <select id="settingPrinterTransport" class="form-control"
+                  onchange="PrinterService.updateTransportControls(this.value)">
+                  <option value="qz">QZ Tray (USB / jaringan)</option>
+                  <option value="bluetooth">Bluetooth (APK Android: BLE / SPP)</option>
+                </select>
+              </div>
+
+              <div id="qzPrinterControls">
+                <div class="form-group">
+                  <label class="form-label" for="settingPrinterSelect">Printer QZ Tray:</label>
+                  <select id="settingPrinterSelect" class="form-control">
+                    <option value="">Hubungkan QZ Tray untuk mencari printer</option>
+                  </select>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm mb-3"
+                  onclick="PrinterService.refreshPrintersList()">↻ Muat Ulang Daftar Printer</button>
+              </div>
+
+              <div id="bluetoothPrinterControls" style="display: none;">
+                <p id="bluetoothPrinterName" class="text-sm text-muted mb-2">Belum ada printer Bluetooth tersimpan.</p>
+                <p class="text-xs text-muted mb-3">
+                  Android memakai koneksi Bluetooth langsung. Di Windows, QZ Tray dapat memakai port COM dari printer
+                  Bluetooth SPP; pairing saja tidak selalu menyediakan port COM. Daftar dapat berisi port serial lain,
+                  jadi pilih port COM yang ditetapkan untuk printer.
+                </p>
+                <div class="form-group">
+                  <label class="form-label" for="settingBluetoothPrinterSelect">Printer Bluetooth:</label>
+                  <select id="settingBluetoothPrinterSelect" class="form-control">
+                    <option value="">Cari printer Bluetooth</option>
+                  </select>
+                </div>
+                <button type="button" id="bluetoothPrinterScanBtn" class="btn btn-secondary btn-sm mb-3"
+                  onclick="PrinterService.scanBluetoothPrinters()">🔎 Cari Printer Bluetooth</button>
+                <div class="form-group">
+                  <label class="form-label" for="settingBluetoothBaudRate">Kecepatan port serial:</label>
+                  <select id="settingBluetoothBaudRate" class="form-control">
+                    <option value="9600">9600 baud</option>
+                    <option value="19200">19200 baud</option>
+                    <option value="38400">38400 baud</option>
+                    <option value="57600">57600 baud</option>
+                    <option value="115200">115200 baud</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="settingPrinterWidthSelect">Ukuran Kertas:</label>
+                <select id="settingPrinterWidthSelect" class="form-control">
+                  <option value="58mm">58 mm</option>
+                  <option value="80mm">80 mm</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="settingPrintModeSelect">Mode Cetak:</label>
+                <select id="settingPrintModeSelect" class="form-control">
+                  <option value="raw">ESC/POS Raw</option>
+                  <option value="html">Pixel HTML (QZ Tray)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label><input type="checkbox" id="settingPrinterAutoPrint"> Cetak otomatis setelah transaksi</label>
+              </div>
+              <div class="form-group">
+                <label><input type="checkbox" id="settingPrinterCutPaper"> Potong kertas setelah mencetak</label>
+              </div>
+              <div class="form-group">
+                <label><input type="checkbox" id="settingPrinterOpenDrawer"> Buka laci kasir setelah mencetak</label>
+              </div>
+
+              <div class="form-group">
+                <span id="printerStatusBadge" class="status-badge status-offline">
+                  <span class="status-dot"></span> Printer: Tidak Terhubung
+                </span>
+                <p id="printerStatusText" class="text-xs text-muted mt-2"></p>
+              </div>
+              <div class="flex gap-2">
+                <button type="button" id="printerConnectBtn" class="btn btn-secondary"
+                  onclick="PrinterService.connectSelectedTransport()">🔌 Hubungkan Printer</button>
+                <button type="button" class="btn btn-secondary"
+                  onclick="PrinterService.testPrint()">Uji Cetak</button>
+                <button type="submit" class="btn btn-primary">Simpan Printer</button>
+              </div>
+            </form>
+        </div>
       </section>
 
       <!-- Bottom Navigation for Mobile & Small Tablets -->
@@ -870,8 +960,8 @@
         <button type="button" class="btn btn-secondary" onclick="POS.closeReceiptModal()">
           Transaksi Baru (F2 / Esc)
         </button>
-        <button type="button" id="receiptPrintBtn" class="btn btn-primary" onclick="POS.printReceipt()">
-          🖨️ Cetak Struk (Ctrl+P / Enter)
+        <button type="button" id="receiptPrintBtn" class="btn btn-primary" onclick="POS.printReceipt(true)">
+          🖨️ Cetak ke Printer Thermal
         </button>
       </div>
     </div>
@@ -1109,14 +1199,14 @@
   <!-- 3. Core POS Modules -->
   <script src="js/db.js"></script>
   <script src="js/state.js"></script>
-  <script src="js/printer.js"></script>
-  <script src="js/pos.js?v=20261123.1"></script>
+  <script src="js/printer.js?v=20261123.8"></script>
+  <script src="js/pos.js?v=20261123.4"></script>
   <script src="js/products.js"></script>
   <script src="js/inventory.js"></script>
   <script src="js/transactions.js"></script>
   <script src="js/excel.js"></script>
   <script src="js/backup.js"></script>
-  <script src="js/app.js?v=20261123.1"></script>
+  <script src="js/app.js?v=20261123.2"></script>
 </body>
 
 </html>

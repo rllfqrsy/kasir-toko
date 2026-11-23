@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kelontong-pos-v8';
+const CACHE_NAME = 'kelontong-pos-v16';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -9,14 +9,14 @@ const ASSETS_TO_CACHE = [
   './icons/icon.svg',
   './js/db.js',
   './js/state.js',
-  './js/printer.js',
-  './js/pos.js?v=20261123.1',
+  './js/printer.js?v=20261123.8',
+  './js/pos.js?v=20261123.4',
   './js/products.js',
   './js/inventory.js',
   './js/transactions.js',
   './js/excel.js',
   './js/backup.js',
-  './js/app.js?v=20261123.1'
+  './js/app.js?v=20261123.2'
 ];
 
 self.addEventListener('install', (event) => {

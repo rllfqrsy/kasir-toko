@@ -33,22 +33,30 @@ Aplikasi Kasir (Point of Sale) modern, minimalis, ringan, dan cepat yang diranca
    - Tombol unduh **Template Excel (.xlsx)** siap pakai.
    - Export seluruh data produk, nilai stok modal & jual, serta riwayat penjualan ke Excel.
 
-4. **Stok Otomatis & Barang Masuk (Restock):**
+4. **Cetak Thermal Bluetooth (Android Native / ESC/POS):**
+   - Aplikasi Android di folder `android/` memindai dan menghubungkan printer BLE atau printer klasik SPP melalui jembatan native, tanpa pemilih perangkat Web Bluetooth.
+   - Pada menu **Pengaturan Toko → Printer Struk Thermal → Bluetooth**, tekan **Cari Printer Bluetooth**, pilih perangkat, lalu tekan **Hubungkan Printer**.
+   - Izin Nearby devices dari Android diperlukan saat pemindaian pertama; izin ini dikelola Android dan tidak dapat dilewati oleh aplikasi.
+   - Di Windows, QZ Tray dapat mencari port COM dari printer Bluetooth SPP dan mengirim ESC/POS melalui port tersebut; printer yang terinstal sebagai printer Windows juga dapat dipilih melalui transport QZ Tray.
+   - Pairing Bluetooth Windows saja belum tentu menyediakan port COM. Untuk printer BLE atau jika port tidak muncul, gunakan APK Android POS. Browser biasa tidak dapat membaca daftar pairing Bluetooth secara langsung.
+   - Printer BLE harus menyediakan layanan GATT dengan karakteristik tulis ESC/POS. Printer klasik harus mendukung Serial Port Profile (SPP); di Android pasangkan melalui pengaturan Bluetooth, sedangkan di Windows pilih port COM yang ditetapkan untuk printer.
+
+5. **Stok Otomatis & Barang Masuk (Restock):**
    - Stok otomatis berkurang setiap transaksi kasir tersimpan.
    - Formulir **Barang Masuk (Restock)** untuk menambah stok saat kulakan grosir atau sales datang, lengkap dengan pencatatan harga beli baru dan supplier.
    - Riwayat mutasi stok lengkap (*Penjualan*, *Barang Masuk*, *Penyesuaian*, *Stok Awal*).
 
-5. **Laporan Keuangan & Analisis Laba:**
+6. **Laporan Keuangan & Analisis Laba:**
    - Laporan ringkasan: **Total Omzet Penjualan**, **Total Modal (HPP)**, **Laba Kotor (Keuntungan Bersih)**, dan **Margin Laba (%)**.
    - Filter tanggal: *Hari Ini*, *7 Hari Terakhir*, *Bulan Ini*, atau *Rentang Tanggal Kustom*.
    - Detail transaksi per nota dan tombol cetak ulang struk.
 
-6. **100% Offline-First & Keamanan Data (IndexedDB):**
+7. **100% Offline-First & Keamanan Data (IndexedDB):**
    - Berjalan murni di browser menggunakan **IndexedDB**.
    - Dilengkapi PWA Service Worker (`sw.js`) dan Manifest (`manifest.json`) agar dapat diinstal ke desktop/ponsel dan dibuka tanpa koneksi internet sama sekali.
    - Menggunakan bundel lokal SheetJS di folder `vendor/` (tidak bergantung pada CDN luar).
 
-7. **Backup & Restore Database (JSON):**
+8. **Backup & Restore Database (JSON):**
    - Unduh seluruh database (produk, transaksi, mutasi stok, pengaturan toko) dalam 1 file `.json`.
    - Restore database dengan opsi: *Timpa Bersih* atau *Gabungkan Data*.
 
@@ -88,6 +96,12 @@ Lalu buka browser Anda di: **`http://localhost:8085/`**
 Cukup klik ganda (double-click) file `index.html` di browser (Google Chrome, Microsoft Edge, Mozilla Firefox, dll).
 *Catatan: Seluruh fitur IndexedDB, kalkulasi kasir, dan SheetJS berfungsi langsung. Untuk caching PWA Service Worker yang optimal, jalankan melalui local server.*
 
+*Catatan printer Bluetooth: Browser web biasa tidak diberi akses untuk membaca pairing Bluetooth. Di desktop Windows, gunakan QZ Tray untuk printer yang menyediakan port COM SPP; koneksi BLE langsung tersedia melalui wrapper Android pada folder `android/`.*
+
+### Aplikasi Android untuk printer Bluetooth
+
+Buka folder `android/` menggunakan Android Studio dengan JDK 17 dan Android SDK 35. Build aplikasi akan menyalin aset POS dari folder utama ke dalam APK. Pilih **Build → Build APK(s)**, lalu instal `android/app/build/outputs/apk/debug/app-debug.apk` pada tablet Android. Izinkan akses **Perangkat di sekitar / Nearby devices** saat pertama kali memindai. Izin sistem Android tetap diperlukan; pemilih perangkat Web Bluetooth tidak digunakan. Printer SPP perlu dipasangkan lewat Pengaturan Bluetooth Android sebelum dipilih di POS.
+
 ---
 
 ## 📂 Struktur Berkas Project
@@ -97,6 +111,7 @@ web kasir/
 ├── index.html                 # Halaman utama aplikasi (Single Page App)
 ├── manifest.json              # Konfigurasi PWA (Progressive Web App)
 ├── sw.js                      # Service Worker untuk offline caching
+├── android/                   # Wrapper Android dan jembatan printer BLE/SPP native
 ├── README.md                  # Dokumentasi lengkap aplikasi
 ├── css/
 │   └── style.css              # Desain UI minimalis (putih & hijau emerald, print styles)

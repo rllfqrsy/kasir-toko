@@ -716,7 +716,7 @@ const POS = {
       App.showToast(`Transaksi berhasil disimpan! No: ${transaction.invoiceNo}`, 'success');
 
       // Direct Thermal Auto-Print via QZ Tray (No browser dialog, zero duplicates)
-      if (window.PrinterService && PrinterService.config.autoPrint) {
+      if (typeof PrinterService !== 'undefined' && PrinterService.config.autoPrint) {
         PrinterService.printReceiptDirect(transaction, false).catch(pErr => {
           console.warn('Auto print error:', pErr);
         });
@@ -833,12 +833,42 @@ const POS = {
   },
 
   async printReceipt(forceDirect = false) {
-    if (forceDirect || (window.PrinterService && PrinterService.isConnected)) {
-      const ok = await PrinterService.printReceiptDirect(this.lastTransaction, true);
-      if (ok) return;
+    if (this.isPrintingReceipt) return false;
+
+    const printButton = document.getElementById('receiptPrintBtn');
+    const buttonLabel = printButton?.textContent;
+    this.isPrintingReceipt = true;
+    if (printButton) {
+      printButton.disabled = true;
+      printButton.textContent = '⏳ Mengirim ke printer...';
     }
-    // Fallback to browser print dialog
-    window.print();
+
+    try {
+      if (typeof PrinterService === 'undefined') {
+        if (forceDirect) {
+          App.showToast('Layanan printer belum siap. Muat ulang aplikasi lalu coba lagi.', 'error');
+          return false;
+        }
+        window.print();
+        return true;
+      }
+
+      const configured = PrinterService.config.transport === 'bluetooth' ||
+        Boolean(PrinterService.config.printerName);
+      if (forceDirect || configured) {
+        const printed = await PrinterService.printReceiptDirect(this.lastTransaction, true);
+        if (printed || forceDirect) return printed;
+      }
+
+      window.print();
+      return true;
+    } finally {
+      this.isPrintingReceipt = false;
+      if (printButton) {
+        printButton.disabled = false;
+        printButton.textContent = buttonLabel || '🖨️ Cetak ke Printer Thermal';
+      }
+    }
   }
 };
 

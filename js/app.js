@@ -197,20 +197,24 @@ const App = {
 
     // Populate printer configuration fields
     const pCfg = PrinterService.config;
+    const transportSelect = document.getElementById('settingPrinterTransport');
     const pWidthSelect = document.getElementById('settingPrinterWidthSelect');
     const pModeSelect = document.getElementById('settingPrintModeSelect');
     const autoPrintCheck = document.getElementById('settingPrinterAutoPrint');
     const cutPaperCheck = document.getElementById('settingPrinterCutPaper');
     const openDrawerCheck = document.getElementById('settingPrinterOpenDrawer');
+    const bluetoothBaudRateSelect = document.getElementById('settingBluetoothBaudRate');
 
+    if (transportSelect) transportSelect.value = pCfg.transport || 'qz';
     if (pWidthSelect) pWidthSelect.value = pCfg.paperWidth || '58mm';
     if (pModeSelect) pModeSelect.value = pCfg.printMode || 'raw';
     if (autoPrintCheck) autoPrintCheck.checked = pCfg.autoPrint !== false;
     if (cutPaperCheck) cutPaperCheck.checked = pCfg.cutPaper !== false;
     if (openDrawerCheck) openDrawerCheck.checked = pCfg.openDrawer === true;
+    if (bluetoothBaudRateSelect) bluetoothBaudRateSelect.value = String(pCfg.bluetoothBaudRate || 9600);
 
     PrinterService.populatePrinterDropdown();
-    PrinterService.updateStatusUI();
+    PrinterService.updateTransportControls(pCfg.transport || 'qz');
   },
 
   async handleSaveSettings(e) {
@@ -238,19 +242,25 @@ const App = {
     e.preventDefault();
 
     const printerSelect = document.getElementById('settingPrinterSelect');
+    const transportSelect = document.getElementById('settingPrinterTransport');
     const widthSelect = document.getElementById('settingPrinterWidthSelect');
     const modeSelect = document.getElementById('settingPrintModeSelect');
     const autoPrintCheck = document.getElementById('settingPrinterAutoPrint');
     const cutPaperCheck = document.getElementById('settingPrinterCutPaper');
     const openDrawerCheck = document.getElementById('settingPrinterOpenDrawer');
+    const bluetoothBaudRateSelect = document.getElementById('settingBluetoothBaudRate');
 
     const newPrinterConfig = {
-      printerName: printerSelect ? printerSelect.value : '',
+      transport: transportSelect ? transportSelect.value : PrinterService.config.transport || 'qz',
+      printerName: printerSelect ? printerSelect.value || PrinterService.config.printerName : PrinterService.config.printerName,
       paperWidth: widthSelect ? widthSelect.value : '58mm',
       printMode: modeSelect ? modeSelect.value : 'raw',
       autoPrint: autoPrintCheck ? autoPrintCheck.checked : true,
       cutPaper: cutPaperCheck ? cutPaperCheck.checked : true,
-      openDrawer: openDrawerCheck ? openDrawerCheck.checked : false
+      openDrawer: openDrawerCheck ? openDrawerCheck.checked : false,
+      bluetoothBaudRate: bluetoothBaudRateSelect
+        ? Number(bluetoothBaudRateSelect.value) || 9600
+        : PrinterService.config.bluetoothBaudRate || 9600
     };
 
     // Also sync the store setting printer width
