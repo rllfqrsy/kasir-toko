@@ -1,0 +1,19 @@
+{
+  "name": "POS Toko Kelontong Qorsya",
+  "short_name": "KasirQorsya",
+  "description": "Aplikasi Kasir dan Manajemen Stok Toko Kelontong Qorsya Ringan & 100% Offline",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#059669",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
