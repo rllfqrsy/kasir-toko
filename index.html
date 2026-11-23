@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#059669">
+  <meta name="description" content="Aplikasi POS Kasir Toko Kelontong Offline-First dengan IndexedDB dan SheetJS">
+  <title>POS Toko Kelontong Qorsya - Kasir & Stok</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="app-sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-logo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+        </div>
+        <div class="sidebar-title">
+          <h1>Toko Qorsya</h1>
+          <span>Kasir POS & Stok</span>
+        </div>
+        <button type="button" class="sidebar-close-btn" onclick="App.closeMobileSidebar()"
+          aria-label="Tutup Menu">&times;</button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button type="button" class="sidebar-nav-item active" data-tab="pos">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span>Kasir (F2)</span>
+        </button>
+
+        <button type="button" class="sidebar-nav-item" data-tab="products">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+            </path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+          </svg>
+          <span>Manajemen Produk</span>
+        </button>
+
+        <button type="button" class="sidebar-nav-item" data-tab="inventory">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+          <span>Barang Masuk (Restock)</span>
+        </button>
+
+        <button type="button" class="sidebar-nav-item" data-tab="transactions">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <span>Laporan & Transaksi</span>
+        </button>
+
+        <button type="button" class="sidebar-nav-item" data-tab="excel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="8" y1="13" x2="16" y2="13"></line>
+            <line x1="8" y1="17" x2="16" y2="17"></line>
+          </svg>
+          <span>Import / Export Excel</span>
+        </button>
+
+        <button type="button" class="sidebar-nav-item" data-tab="backup">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          <span>Backup & Restore (JSON)</span>
+        </button>
+
+        <button type="button" class="sidebar-nav-item" data-tab="settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+            </path>
+          </svg>
+          <span>Pengaturan Toko</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div id="networkStatusBadge" class="status-badge status-online">
+          <span class="status-dot"></span> Online (Siap Offline)
+        </div>
+        <div class="text-xs text-muted">
+          PWA & Database Lokal (IndexedDB)
+        </div>
+      </div>
+    </aside>
+
+    <!-- Overlay for Mobile Sidebar Drawer -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="App.closeMobileSidebar()"></div>
+
+    <!-- ==================== MAIN CONTENT AREA ==================== -->
+    <main class="app-main">
+      <!-- Topbar -->
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button type="button" id="mobileMenuBtn" class="btn-hamburger" onclick="App.toggleMobileSidebar()"
+            aria-label="Buka Menu">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <div id="topbarStoreName" class="topbar-store-name">TOKO KELONTONG QORSYA</div>
+        </div>
+        <div class="topbar-right">
+          <!-- Mobile Quick Cart Button -->
+          <button type="button" class="btn-icon-topbar btn-topbar-cart" onclick="POS.openMobileCart()" title="Lihat Keranjang Belanja">
+            <span>🛒</span>
+            <span id="topbarCartCount" class="topbar-cart-badge">0</span>
+          </button>
+          <button type="button" class="btn-icon-topbar" onclick="State.toggleSound()" title="Toggle Bunyi Beep Kasir">
+            <span>🔊 Bunyi</span>
+          </button>
+          <button type="button" class="btn-icon-topbar desktop-only" onclick="App.openShortcutsModal()"
+            title="Lihat Pintasan Keyboard">
+            <span class="font-mono">⌨️ [?]</span>
+            <span>Pintasan</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- VIEW 1: KASIR (POS) - DEFAULT VIEW -->
+      <section id="view-pos" class="view-panel active">
+        <!-- Mobile Segmented View Switcher (Katalog vs Keranjang) -->
+        <div class="pos-mobile-nav-pills">
+          <button type="button" id="posMobileTabCatalog" class="pos-mobile-nav-btn active" onclick="POS.switchMobileView('catalog')">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span>Katalog Produk</span>
+          </button>
+          <button type="button" id="posMobileTabCart" class="pos-mobile-nav-btn" onclick="POS.switchMobileView('cart')">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            <span>Keranjang Belanja</span>
+            <span id="posMobileTabCartBadge" class="mobile-tab-cart-badge">0</span>
+          </button>
+        </div>
+
+        <!-- Catalog & Fast Search (Left) -->
+        <div class="pos-catalog-section">
+          <div class="pos-search-header">
+            <div class="search-input-wrapper">
+              <svg class="search-icon-left" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="posSearchInput" class="pos-search-input"
+                placeholder="Scan barcode scanner atau ketik nama/kode barang... (Tekan Enter)" autofocus
+                autocomplete="off">
+              <span class="shortcut-indicator">F2</span>
+            </div>
+
+            <div class="pos-category-bar" id="posCategoryPills">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Product Table (Fast dense view, NOT cards!) -->
+          <div class="pos-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="col-identity">Barcode / Kode</th>
+                  <th class="col-name">Nama Barang</th>
+                  <th class="col-category">Kategori</th>
+                  <th class="col-price">Harga</th>
+                  <th class="col-stock">Stok</th>
+                  <th class="col-action text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="posProductTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Floating Cart Bar for Mobile & Tablet -->
+          <div id="posMobileCartBar" class="pos-mobile-cart-bar" onclick="POS.openMobileCart()">
+            <div class="mobile-cart-bar-info">
+              <span class="mobile-cart-bar-badge" id="posMobileCartCount">0 item</span>
+              <span class="mobile-cart-bar-total" id="posMobileCartTotal">Rp 0</span>
+            </div>
+            <div class="mobile-cart-bar-action">
+              <span>Buka Keranjang ➔</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile Cart Overlay Backdrop -->
+        <div id="cartOverlay" class="cart-overlay" onclick="POS.closeMobileCart()"></div>
+
+        <!-- Sticky Shopping Cart (Right on Desktop, Slide-over Drawer on Mobile) -->
+        <div class="pos-cart-section" id="posCartSection">
+          <div class="pos-cart-header">
+            <div class="cart-title-group">
+              <button type="button" class="btn-cart-back-mobile" onclick="POS.switchMobileView('catalog')" title="Kembali ke Katalog">
+                ◀ Katalog
+              </button>
+              <h2>Keranjang Belanja</h2>
+              <span id="posCartItemCount" class="cart-counter-pill">0 jenis</span>
+            </div>
+            <div class="cart-header-actions">
+              <button type="button" class="btn-cart-clear"
+                onclick="if(confirm('Kosongkan keranjang?')) State.clearCart()" title="Kosongkan (F4)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span>Kosongkan</span>
+              </button>
+              <button type="button" class="btn-cart-close-mobile" onclick="POS.closeMobileCart()"
+                aria-label="Tutup Keranjang">&times;</button>
+            </div>
+          </div>
+
+          <div class="pos-cart-items-wrapper" id="posCartItems">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <!-- Held / Pending carts section -->
+          <div class="held-carts-bar" id="posHeldCartsContainer">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <!-- Totals & Actions -->
+          <div class="pos-cart-footer">
+            <div class="cart-calc-row">
+              <span>Jumlah Item:</span>
+              <span id="posCartQtyBadge" class="font-semibold">0 item</span>
+            </div>
+            <div class="cart-calc-row">
+              <span>Subtotal:</span>
+              <span id="posCartSubtotal" class="font-semibold">Rp 0</span>
+            </div>
+            <div class="cart-grand-total-row">
+              <span class="cart-grand-total-label">TOTAL BELANJA</span>
+              <span id="posCartGrandTotal" class="cart-grand-total-value">Rp 0</span>
+            </div>
+            <div class="cart-action-buttons">
+              <button type="button" class="btn-hold-cart" onclick="State.holdCart()"
+                title="Tahan transaksi pelanggan ini">
+                <span>⏸️ Tahan (Pending)</span>
+              </button>
+              <button type="button" id="posCheckoutBtn" class="btn-checkout" onclick="POS.openPaymentModal()" disabled>
+                <span>Bayar (F8) ➔</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: MANAJEMEN PRODUK -->
+      <section id="view-products" class="view-panel">
+        <div class="section-header">
+          <div>
+            <h2>Manajemen Produk & Stok</h2>
+            <p>Kelola data master barang kelontong, barcode, harga jual, dan modal HPP.</p>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" class="btn btn-secondary" onclick="Products.loadInitialSampleData()">
+              ✨ Muat Data Contoh (50+ Produk)
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="ExcelService.exportProductsExcel()">
+              📑 Export Excel
+            </button>
+            <button type="button" class="btn btn-primary" onclick="Products.openAddModal()">
+              + Tambah Produk Baru
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="filter-bar">
+            <div class="search-box">
+              <input type="text" id="productSearchInput" class="form-control"
+                placeholder="Cari berdasarkan barcode, kode internal, atau nama...">
+            </div>
+            <div class="filter-select-wrapper" style="width: 180px;">
+              <select id="productFilterCategory" class="form-control">
+                <option value="ALL">Semua Kategori</option>
+              </select>
+            </div>
+            <div class="filter-select-wrapper" style="width: 170px;">
+              <select id="productFilterStock" class="form-control">
+                <option value="ALL">Semua Stok</option>
+                <option value="low">Stok Menipis</option>
+                <option value="empty">Stok Habis (0)</option>
+                <option value="safe">Stok Aman</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="col-num">#</th>
+                  <th>Barcode</th>
+                  <th>Kode Internal</th>
+                  <th onclick="Products.sortBy('name')" style="cursor: pointer;">Nama Produk ⬍</th>
+                  <th>Kategori</th>
+                  <th onclick="Products.sortBy('buyPrice')" style="cursor: pointer;">Harga Beli ⬍</th>
+                  <th onclick="Products.sortBy('sellPrice')" style="cursor: pointer;">Harga Jual ⬍</th>
+                  <th onclick="Products.sortBy('margin')" style="cursor: pointer;">Laba (Margin) ⬍</th>
+                  <th onclick="Products.sortBy('stock')" style="cursor: pointer;">Stok ⬍</th>
+                  <th class="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="productListTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="flex-between mt-3" id="productPagination">
+            <!-- Pagination controls -->
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: BARANG MASUK / RESTOCK -->
+      <section id="view-inventory" class="view-panel">
+        <div class="section-header">
+          <div>
+            <h2>Barang Masuk & Restock Stok</h2>
+            <p>Tambah stok barang dari supplier atau kulakan grosir secara otomatis.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="mb-3 font-semibold">Formulir Penerimaan Barang Masuk</h3>
+
+          <div class="form-grid-2 mb-3">
+            <div>
+              <label class="form-label">Nama Supplier / Grosir:</label>
+              <input type="text" id="restockSupplier" class="form-control"
+                placeholder="Contoh: Grosir Makmur / Salesman Indofood">
+            </div>
+            <div>
+              <label class="form-label">No. Faktur / Catatan Surat Jalan:</label>
+              <input type="text" id="restockNote" class="form-control" placeholder="Contoh: FKT-202611-09">
+            </div>
+          </div>
+
+          <div class="form-group" style="position: relative;">
+            <label class="form-label">Pilih Produk yang Masuk (Ketik Barcode / Kode / Nama):</label>
+            <input type="text" id="inventorySearchInput" class="form-control"
+              placeholder="Ketik barcode atau nama barang lalu tekan Enter..." autocomplete="off">
+            <div id="inventoryProductSuggestions" class="suggestion-dropdown" style="display: none;"></div>
+          </div>
+
+          <div class="table-container mt-3">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="col-num">#</th>
+                  <th>Nama Produk</th>
+                  <th>Stok Sekarang</th>
+                  <th>Jumlah Masuk</th>
+                  <th>Harga Beli Baru (Rp)</th>
+                  <th>Total Biaya</th>
+                  <th class="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="restockTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="flex-between mt-3 py-1">
+            <div>
+              <span class="text-muted">Total Jumlah Masuk: </span>
+              <strong id="restockTotalQty">0 unit</strong>
+            </div>
+            <div>
+              <span class="text-muted">Total Pembelian Restock: </span>
+              <strong id="restockTotalCost" class="text-emerald text-lg">Rp 0</strong>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-3">
+            <button type="button" class="btn btn-secondary" onclick="Inventory.clearRestock()">
+              Reset Daftar
+            </button>
+            <button type="button" id="restockSubmitBtn" class="btn btn-primary" onclick="Inventory.submitRestock()"
+              disabled>
+              💾 Simpan & Tambah Stok
+            </button>
+          </div>
+        </div>
+
+        <!-- Stock Movement History -->
+        <div class="card">
+          <div class="flex-between mb-3">
+            <h3 class="font-semibold">Riwayat Mutasi Stok Otomatis</h3>
+            <div class="filter-select-wrapper" style="width: 200px;">
+              <select id="stockLogTypeFilter" class="form-control" onchange="Inventory.renderStockLogs()">
+                <option value="ALL">Semua Jenis Mutasi</option>
+                <option value="SALE">Penjualan Kasir</option>
+                <option value="RESTOCK">Barang Masuk (Restock)</option>
+                <option value="INITIAL">Stok Awal</option>
+                <option value="ADJUSTMENT">Penyesuaian Manual</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Waktu</th>
+                  <th>Nama Produk</th>
+                  <th>Jenis Mutasi</th>
+                  <th>Perubahan</th>
+                  <th>Stok Sebelum</th>
+                  <th>Stok Sesudah</th>
+                  <th>Referensi / Keterangan</th>
+                </tr>
+              </thead>
+              <tbody id="stockLogsTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: TRANSAKSI & LAPORAN LABA/OMZET -->
+      <section id="view-transactions" class="view-panel">
+        <div class="section-header">
+          <div>
+            <h2>Riwayat Penjualan & Laporan Keuangan</h2>
+            <p>Pantau omzet pendapatan, harga pokok penjualan (HPP), dan laba kotor toko.</p>
+          </div>
+          <button type="button" class="btn btn-secondary" onclick="ExcelService.exportTransactionsExcel()">
+            📑 Export Laporan Excel (.xlsx)
+          </button>
+        </div>
+
+        <!-- KPI Summary Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card border-emerald">
+            <div class="kpi-title">Total Omzet Penjualan</div>
+            <div id="kpiTotalOmzet" class="kpi-value text-emerald">Rp 0</div>
+            <div class="kpi-subtext">Total penerimaan kasir kotor</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Total Modal (HPP)</div>
+            <div id="kpiTotalHPP" class="kpi-value text-muted">Rp 0</div>
+            <div class="kpi-subtext">Biaya modal beli barang terjual</div>
+          </div>
+          <div class="kpi-card border-emerald">
+            <div class="kpi-title">Laba Kotor (Keuntungan)</div>
+            <div id="kpiTotalLaba" class="kpi-value text-emerald">Rp 0</div>
+            <div class="kpi-subtext">Omzet dikurangi Modal HPP</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Margin Laba Rata-rata</div>
+            <div id="kpiMarginPct" class="kpi-value">0%</div>
+            <div class="kpi-subtext">Persentase keuntungan terhadap omzet</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Volume Transaksi</div>
+            <div id="kpiTotalTx" class="kpi-value">0</div>
+            <div id="kpiTotalItems" class="kpi-subtext">0 Item Terjual</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="filter-bar">
+            <div class="search-box">
+              <input type="text" id="txSearchInput" class="form-control"
+                placeholder="Cari berdasarkan nomor nota atau nama kasir...">
+            </div>
+            <div class="filter-select-wrapper" style="width: 170px;">
+              <select id="txDateFilter" class="form-control">
+                <option value="today">Hari Ini</option>
+                <option value="7days">7 Hari Terakhir</option>
+                <option value="month">Bulan Ini</option>
+                <option value="all">Semua Waktu</option>
+                <option value="custom">Rentang Tanggal</option>
+              </select>
+            </div>
+            <div id="txCustomDateRange" class="filter-custom-date" style="display: none; gap: 8px;">
+              <input type="date" id="txStartDate" class="form-control">
+              <input type="date" id="txEndDate" class="form-control">
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="col-num">#</th>
+                  <th>No. Nota</th>
+                  <th>Waktu</th>
+                  <th>Metode</th>
+                  <th>Jumlah Item</th>
+                  <th>Total Belanja</th>
+                  <th>Modal HPP</th>
+                  <th>Laba Kotor</th>
+                  <th class="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="txTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 5: IMPORT / EXPORT EXCEL (SHEETJS) -->
+      <section id="view-excel" class="view-panel">
+        <div class="section-header">
+          <div>
+            <h2>Import & Export Excel (SheetJS)</h2>
+            <p>Import hingga 1.000+ produk sekaligus dari file Excel tanpa menimpa stok berjalan.</p>
+          </div>
+          <button type="button" class="btn btn-secondary" onclick="ExcelService.downloadTemplateExcel()">
+            📥 Unduh Template Excel (.xlsx)
+          </button>
+        </div>
+
+        <div class="card">
+          <h3 class="font-semibold mb-2">Upload File Excel Produk (.xlsx / .xls)</h3>
+          <p class="text-xs text-muted mb-3">
+            Aturan Import: Produk baru otomatis ditambahkan dengan stok awal. Produk lama dikenali lewat Barcode atau
+            Kode Internal, dan <strong>stok berjalannya tidak akan ditimpa</strong>!
+          </p>
+
+          <div class="drop-zone" id="excelDropZone" onclick="document.getElementById('excelFileInput').click()">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <h4 class="font-semibold">Klik atau Geser (Drag & Drop) File Excel ke Sini</h4>
+            <p class="text-xs text-muted mt-1">Mendukung format .xlsx dan .xls</p>
+            <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display: none;">
+          </div>
+
+          <div id="excelLoadingIndicator" style="display: none; text-align: center; padding: 20px;">
+            <p class="font-medium text-emerald">Sedang memproses dan memvalidasi file Excel...</p>
+          </div>
+        </div>
+
+        <!-- Interactive Preview Section -->
+        <div class="card" id="excelPreviewSection" style="display: none;">
+          <div class="flex-between mb-3">
+            <h3 class="font-semibold">Preview & Validasi Data Import</h3>
+            <button type="button" id="excelConfirmImportBtn" class="btn btn-primary"
+              onclick="ExcelService.executeImport()">
+              ✅ Konfirmasi & Proses Import
+            </button>
+          </div>
+
+          <div class="preview-summary-grid" id="excelPreviewSummary">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <p id="excelPreviewNotice" class="text-xs text-muted mb-2"></p>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="col-num">Baris</th>
+                  <th>Status</th>
+                  <th>Barcode / Kode</th>
+                  <th>Nama Produk</th>
+                  <th>Kategori</th>
+                  <th>Harga Beli</th>
+                  <th>Harga Jual</th>
+                  <th>Perlakuan Stok</th>
+                  <th>Keterangan Validasi</th>
+                </tr>
+              </thead>
+              <tbody id="excelPreviewTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Export Buttons Section -->
+        <div class="card">
+          <h3 class="font-semibold mb-2">Export Data Toko ke Excel</h3>
+          <p class="text-xs text-muted mb-3">Unduh cadangan data dalam format spreadsheet untuk dianalisis di Microsoft
+            Excel atau Google Sheets.</p>
+          <div class="flex gap-2">
+            <button type="button" class="btn btn-secondary" onclick="ExcelService.exportProductsExcel()">
+              📊 Export Master Produk & Nilai Stok (.xlsx)
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="ExcelService.exportTransactionsExcel()">
+              📈 Export Seluruh Laporan Penjualan (.xlsx)
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 6: BACKUP & RESTORE (JSON) -->
+      <section id="view-backup" class="view-panel">
+        <div class="section-header">
+          <div>
+            <h2>Backup & Restore Database (JSON)</h2>
+            <p>Amankan seluruh database lokal (produk, riwayat penjualan, mutasi stok, pengaturan) ke dalam satu file
+              JSON.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="font-semibold mb-2">1. Backup Database (Download JSON)</h3>
+          <p class="text-xs text-muted mb-3">
+            Simpan file backup secara berkala ke flashdisk atau Google Drive Anda. Database tersimpan 100% di browser
+            lokal Anda.
+          </p>
+          <button type="button" class="btn btn-primary" onclick="BackupService.downloadBackup()">
+            💾 Unduh Backup Database (.json)
+          </button>
+        </div>
+
+        <div class="card">
+          <h3 class="font-semibold mb-2">2. Restore Database dari File JSON</h3>
+          <p class="text-xs text-muted mb-3">
+            Pulihkan data dari komputer lain atau pulihkan kembali setelah pembersihan cache browser.
+          </p>
+          <input type="file" id="backupRestoreFileInput" accept=".json" style="display: none;">
+          <button type="button" class="btn btn-secondary"
+            onclick="document.getElementById('backupRestoreFileInput').click()">
+            📂 Pilih File Backup (.json) untuk Dipulihkan
+          </button>
+        </div>
+
+        <div class="card" style="border-left: 4px solid var(--danger);">
+          <h3 class="font-semibold text-danger mb-2">3. Zona Bahaya: Bersihkan Database</h3>
+          <p class="text-xs text-muted mb-3">
+            Hapus seluruh data produk dan transaksi untuk memulai toko dari awal. Pastikan Anda sudah mengunduh backup
+            sebelum melakukan ini!
+          </p>
+          <button type="button" class="btn btn-danger btn-sm" onclick="BackupService.clearAllDataSafely()">
+            ⚠️ Hapus Seluruh Data Toko
+          </button>
+        </div>
+      </section>
+
+      <!-- VIEW 7: PENGATURAN TOKO -->
+      <section id="view-settings" class="view-panel">
+        <div class="section-header">
+          <div>
+            <h2>Pengaturan Toko & Printer</h2>
+            <p>Atur identitas warung kelontong dan format cetak struk kasir.</p>
+          </div>
+        </div>
+
+        <div class="card" style="max-width: 650px;">
+          <form onsubmit="App.handleSaveSettings(event)">
+            <div class="form-group">
+              <label class="form-label">Nama Toko / Warung:</label>
+              <input type="text" id="settingStoreName" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Alamat Toko:</label>
+              <input type="text" id="settingStoreAddress" class="form-control"
+                placeholder="Contoh: Jl. Diponegoro No. 45">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Nomor Telepon / WhatsApp:</label>
+              <input type="text" id="settingStorePhone" class="form-control" placeholder="Contoh: 0812-3456-7890">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Nama Petugas Kasir Default:</label>
+              <input type="text" id="settingCashierName" class="form-control" value="Kasir 1">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Ukuran Kertas Printer Thermal:</label>
+              <select id="settingPrinterWidth" class="form-control">
+                <option value="58mm">58 mm (Printer Kasir Mini / Standar)</option>
+                <option value="80mm">80 mm (Printer Kasir Lebar)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Pesan Kaki Struk (Footer):</label>
+              <textarea id="settingReceiptFooter" class="form-control" rows="3"
+                placeholder="Pesan terima kasih di bagian bawah struk..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary mt-2">
+              💾 Simpan Pengaturan Toko
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Bottom Navigation for Mobile & Small Tablets -->
+      <nav class="mobile-bottom-nav">
+        <button type="button" class="bottom-nav-item active" data-tab="pos" onclick="App.switchTab('pos'); POS.switchMobileView('catalog')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span>Katalog</span>
+        </button>
+        <button type="button" class="bottom-nav-item" id="bottomNavCartBtn" data-tab="cart" onclick="App.switchTab('pos'); POS.switchMobileView('cart')">
+          <div class="bottom-nav-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            <span id="bottomNavCartBadge" class="bottom-nav-badge">0</span>
+          </div>
+          <span>Keranjang</span>
+        </button>
+        <button type="button" class="bottom-nav-item" data-tab="products" onclick="App.switchTab('products')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+            </path>
+          </svg>
+          <span>Produk</span>
+        </button>
+        <button type="button" class="bottom-nav-item" data-tab="transactions" onclick="App.switchTab('transactions')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <span>Laporan</span>
+        </button>
+        <button type="button" class="bottom-nav-item" onclick="App.toggleMobileSidebar()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+          <span>Menu</span>
+        </button>
+      </nav>
+    </main>
+  </div>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- MODAL: PAYMENT / CHECKOUT -->
+  <div id="paymentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Pembayaran Transaksi</h3>
+        <button type="button" class="modal-close" onclick="POS.closePaymentModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="payment-grand-total-box">
+          <div class="label">Total Yang Harus Dibayar</div>
+          <div id="paymentGrandTotalDisplay" class="amount">Rp 0</div>
+        </div>
+
+        <div class="payment-methods-grid">
+          <button type="button" class="payment-method-btn active" data-method="Tunai"
+            onclick="POS.setPaymentMethod('Tunai')">
+            💵 Tunai
+          </button>
+          <button type="button" class="payment-method-btn" data-method="QRIS" onclick="POS.setPaymentMethod('QRIS')">
+            📱 QRIS
+          </button>
+          <button type="button" class="payment-method-btn" data-method="Transfer"
+            onclick="POS.setPaymentMethod('Transfer')">
+            🏦 Transfer
+          </button>
+        </div>
+
+        <div id="paymentCashDetails">
+          <div class="quick-cash-grid" id="paymentQuickCashBtns">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Uang Tunai Diterima (Rp):</label>
+            <input type="number" id="paymentAmountPaid" class="form-control font-bold text-lg" placeholder="0"
+              style="font-size: 20px; color: var(--primary);" inputmode="numeric">
+          </div>
+
+          <div class="payment-change-box mb-3">
+            <span class="text-sm font-medium">Kembalian:</span>
+            <span id="paymentChangeDisplay" class="payment-change text-muted">Rp 0</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Catatan Nota (Opsional):</label>
+          <input type="text" id="paymentNote" class="form-control" placeholder="Contoh: Pelanggan Bawa Kantong Sendiri">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="POS.closePaymentModal()">Batal (Esc)</button>
+        <button type="button" id="paymentSubmitBtn" class="btn btn-primary" onclick="POS.processPayment()">
+          ✅ Selesaikan Transaksi (Enter)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RECEIPT / STRUK KASIR -->
+  <div id="receiptModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Struk Penjualan Kasir</h3>
+        <button type="button" class="modal-close" onclick="POS.closeReceiptModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="thermal-receipt-container">
+          <div id="thermalReceiptPreview">
+            <!-- Thermal receipt HTML injected here -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="POS.closeReceiptModal()">
+          Transaksi Baru (F2 / Esc)
+        </button>
+        <button type="button" id="receiptPrintBtn" class="btn btn-primary" onclick="POS.printReceipt()">
+          🖨️ Cetak Struk (Ctrl+P / Enter)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: TAMBAH / EDIT PRODUK -->
+  <div id="productFormModal" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3 id="productModalTitle">Tambah Produk Baru</h3>
+        <button type="button" class="modal-close" onclick="Products.closeModal()">&times;</button>
+      </div>
+      <form id="productForm" onsubmit="Products.saveProduct(event)">
+        <div class="modal-body">
+          <input type="hidden" id="prodModalId">
+
+          <div class="alert-info mb-3 text-xs"
+            style="background: var(--info-light); padding: 8px 12px; border-radius: 6px; color: #1e40af;">
+            ℹ️ <strong>Aturan Identitas:</strong> Wajib mengisi minimal <strong>Barcode</strong> (untuk produk pabrikan)
+            ATAU <strong>Kode Barang Internal</strong> (untuk produk curah/tanpa barcode).
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Barcode (Scan atau Ketik):</label>
+              <input type="text" id="prodModalBarcode" class="form-control" placeholder="Contoh: 8992775211117">
+              <span class="text-xs text-muted">Identitas utama jika ada barcode kemasan</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Kode Internal (Opsional / Curah):</label>
+              <input type="text" id="prodModalCode" class="form-control" placeholder="Contoh: TLR-01, BRS-01">
+              <span class="text-xs text-muted">Untuk barang tanpa barcode</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nama Produk:*</label>
+            <input type="text" id="prodModalName" class="form-control" required
+              placeholder="Contoh: Minyak Goreng Bimoli 2L">
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Kategori:</label>
+              <input type="text" id="prodModalCategory" class="form-control" list="categorySuggestions"
+                placeholder="Sembako">
+              <datalist id="categorySuggestions">
+                <option value="Sembako">
+                <option value="Minuman">
+                <option value="Mie Instan">
+                <option value="Makanan Ringan">
+                <option value="Sabun & Kebersihan">
+                <option value="Bumbu Dapur">
+                <option value="Kopi & Teh">
+                <option value="Rokok">
+                <option value="Obat & Medis">
+                <option value="Lainnya">
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Satuan Kemasan:</label>
+              <select id="prodModalUnit" class="form-control">
+                <option value="Pcs">Pcs</option>
+                <option value="Bks">Bks (Bungkus)</option>
+                <option value="Btl">Btl (Botol)</option>
+                <option value="Kg">Kg</option>
+                <option value="Liter">Liter</option>
+                <option value="Butir">Butir</option>
+                <option value="Renceng">Renceng</option>
+                <option value="Dus">Dus</option>
+                <option value="Strip">Strip</option>
+                <option value="Pack">Pack</option>
+                <option value="Cup">Cup</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Harga Beli / Modal (HPP):</label>
+              <input type="number" id="prodModalBuyPrice" class="form-control" min="0" placeholder="0" inputmode="numeric" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Harga Jual Kasir:*</label>
+              <input type="number" id="prodModalSellPrice" class="form-control" min="0" placeholder="0" inputmode="numeric" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <span id="prodModalMarginBadge" class="margin-badge">Laba: Rp 0 (0%)</span>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Stok Sekarang:</label>
+              <input type="number" id="prodModalStock" class="form-control" min="0" value="0" inputmode="numeric">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Batas Minimum Stok (Peringatan):</label>
+              <input type="number" id="prodModalMinStock" class="form-control" min="0" value="5" inputmode="numeric">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="Products.closeModal()">Batal</button>
+          <button type="submit" class="btn btn-primary">💾 Simpan Produk</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: DETAIL TRANSAKSI -->
+  <div id="txDetailModal" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3 id="txDetailModalTitle">Detail Transaksi</h3>
+        <button type="button" class="modal-close" onclick="Transactions.closeDetailModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="txDetailModalBody">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="Transactions.closeDetailModal()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REPORT HASIL IMPORT EXCEL -->
+  <div id="excelResultModal" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3>Laporan Hasil Import Excel</h3>
+        <button type="button" class="modal-close" onclick="ExcelService.closeResultModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="excelResultModalBody">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="ExcelService.closeResultModal()">Selesai & Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RESTORE CONFIRMATION -->
+  <div id="restoreConfirmModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Konfirmasi Pemulihan Database</h3>
+        <button type="button" class="modal-close" onclick="BackupService.closeRestoreModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-sm mb-3">Informasi file backup yang dipilih:</p>
+        <div id="restoreBackupInfo" class="mb-3"></div>
+
+        <div class="alert-info text-xs p-2 mb-3"
+          style="background: var(--warning-light); border: 1px solid var(--warning); border-radius: 6px; color: #92400e;">
+          ⚠️ <strong>Pilihan Pemulihan:</strong>
+          <br>• <strong>Timpa Bersih:</strong> Menghapus database lama dan menggantinya persis dengan isi file backup.
+          <br>• <strong>Gabungkan:</strong> Memperbarui atau menambahkan produk tanpa menghapus transaksi yang sudah
+          ada.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="BackupService.closeRestoreModal()">Batal</button>
+        <button type="button" class="btn btn-secondary" onclick="BackupService.executeRestore('merge')">
+          Gabungkan Data
+        </button>
+        <button type="button" class="btn btn-danger" onclick="BackupService.executeRestore('replace')">
+          Timpa Bersih (Ganti Seluruh Data)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: KEYBOARD SHORTCUTS HELP -->
+  <div id="shortcutsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Pintasan Keyboard (Shortcuts)</h3>
+        <button type="button" class="modal-close" onclick="App.closeModal('shortcutsModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="shortcut-list">
+          <div class="shortcut-row">
+            <span>Fokus ke Pencarian Kasir</span>
+            <span class="kbd">F2</span>
+          </div>
+          <div class="shortcut-row">
+            <span>Buka Pembayaran / Bayar</span>
+            <span class="kbd">F8</span>
+          </div>
+          <div class="shortcut-row">
+            <span>Kosongkan Keranjang Kasir</span>
+            <span class="kbd">F4</span>
+          </div>
+          <div class="shortcut-row">
+            <span>Buka Menu Barang Masuk</span>
+            <span class="kbd">F9</span>
+          </div>
+          <div class="shortcut-row">
+            <span>Navigasi Baris Produk Tabel Kasir</span>
+            <span class="kbd">↑ / ↓</span>
+          </div>
+          <div class="shortcut-row">
+            <span>Tambah Item / Konfirmasi Bayar / Cetak</span>
+            <span class="kbd">Enter</span>
+          </div>
+          <div class="shortcut-row">
+            <span>Tutup Jendela Dialog / Modal</span>
+            <span class="kbd">Esc</span>
+          </div>
+          <div class="shortcut-row">
+            <span>Buka Bantuan Pintasan Ini</span>
+            <span class="kbd">?</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="App.closeModal('shortcutsModal')">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TOAST NOTIFICATIONS CONTAINER ==================== -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- ==================== SCRIPTS ==================== -->
+  <!-- 1. Sample Data (50+ Indonesian grocery products) -->
+  <script src="sample/initial-data.js"></script>
+
+  <!-- 2. SheetJS Local Vendor Bundle (Zero network needed) -->
+  <script src="vendor/xlsx.full.min.js"></script>
+
+  <!-- 3. Core POS Modules -->
+  <script src="js/db.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/pos.js"></script>
+  <script src="js/products.js"></script>
+  <script src="js/inventory.js"></script>
+  <script src="js/transactions.js"></script>
+  <script src="js/excel.js"></script>
+  <script src="js/backup.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>
