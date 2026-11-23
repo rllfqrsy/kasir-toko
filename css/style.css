@@ -3042,6 +3042,458 @@ overflow-y: auto;
     overflow: visible !important;
     height: auto !important;
   }
+}
+
+/* Compact POS workstation layout */
+.pos-cashier-badge,
+.pos-clock,
+.pos-shortcut-bar {
+  display: none;
+}
+
+@media screen and (min-width: 901px) {
+    body.pos-kiosk .app-sidebar {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 1050;
+      transform: translateX(-100%);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    body.pos-kiosk .app-sidebar.sidebar-open {
+      transform: translateX(0);
+    }
+
+    body.pos-kiosk .app-main {
+      width: 100vw;
+    }
+
+    body.pos-kiosk .app-topbar {
+      height: 44px;
+      min-height: 44px;
+      padding: 0 12px;
+    }
+
+    body.pos-kiosk .topbar-left {
+      gap: 12px;
+    }
+
+    body.pos-kiosk .btn-hamburger {
+      display: inline-flex;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    body.pos-kiosk .topbar-store-name {
+      font-size: 14px;
+    }
+
+    body.pos-kiosk .pos-cashier-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border: 1px solid var(--primary-border);
+      border-radius: 9999px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    body.pos-kiosk .pos-cashier-badge span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    body.pos-kiosk .topbar-right {
+      gap: 8px;
+    }
+
+    body.pos-kiosk .pos-clock {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      padding-right: 10px;
+      border-right: 1px solid var(--border);
+      color: var(--secondary);
+      font-size: 9px;
+      line-height: 1.2;
+      text-transform: capitalize;
+    }
+
+    body.pos-kiosk .pos-clock strong {
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+
+    body.pos-kiosk .btn-topbar-cart {
+      display: none !important;
+    }
+
+    body.pos-kiosk .desktop-only {
+      display: inline-flex !important;
+      padding: 6px 8px;
+    }
+
+    body.pos-kiosk .desktop-only span:last-child {
+      display: none;
+    }
+
+    body.pos-kiosk .desktop-only .font-mono {
+      font-size: 0;
+    }
+
+    body.pos-kiosk .desktop-only .font-mono::after {
+      content: '?';
+      font-family: var(--font-family);
+      font-size: 12px;
+    }
+
+    body.pos-kiosk #view-pos.active {
+      position: relative;
+      display: flex !important;
+      height: calc(100dvh - 44px) !important;
+      min-height: 0;
+      padding: 0 0 24px !important;
+      flex-direction: row !important;
+      overflow: hidden !important;
+    }
+
+    body.pos-kiosk .pos-mobile-nav-pills,
+    body.pos-kiosk .pos-mobile-cart-bar,
+    body.pos-kiosk .cart-overlay {
+      display: none !important;
+    }
+
+    body.pos-kiosk .pos-catalog-section {
+      min-width: 0;
+      height: 100% !important;
+      border-right: 1px solid var(--border) !important;
+    }
+
+    body.pos-kiosk .pos-search-header {
+      gap: 7px;
+      padding: 9px 10px 6px;
+    }
+
+    body.pos-kiosk .search-input-wrapper {
+      padding: 2px;
+      border: 2px solid var(--primary);
+      border-radius: 10px;
+    }
+
+    body.pos-kiosk .pos-search-input {
+      min-width: 0;
+      padding: 7px 34px 7px 32px;
+      border: 0;
+      box-shadow: none;
+      font-size: 11px;
+    }
+
+    body.pos-kiosk .pos-search-input:focus {
+      border: 0;
+      box-shadow: none;
+    }
+
+    body.pos-kiosk .search-icon-left {
+      left: 9px;
+      width: 16px;
+      height: 16px;
+    }
+
+    body.pos-kiosk .shortcut-indicator {
+      right: 7px;
+      padding: 1px 5px;
+      font-size: 9px;
+    }
+
+    body.pos-kiosk .pos-category-bar {
+      gap: 6px;
+      padding: 0 1px 1px;
+      scrollbar-width: none;
+    }
+
+    body.pos-kiosk .pos-category-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    body.pos-kiosk .category-pill {
+      padding: 5px 11px;
+      border-radius: 6px;
+      font-size: 10px;
+    }
+
+    body.pos-kiosk .pos-table-container {
+      overflow: auto;
+      background: var(--bg-body);
+    }
+
+    body.pos-kiosk #view-pos .data-table {
+      display: block;
+      min-width: 0;
+    }
+
+    body.pos-kiosk #view-pos .data-table thead {
+      display: none;
+    }
+
+    body.pos-kiosk #view-pos .data-table tbody {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+      align-content: start;
+      gap: 7px;
+      padding: 9px 10px;
+    }
+
+    body.pos-kiosk #view-pos .data-table tr {
+      display: flex;
+      min-width: 0;
+      min-height: 72px;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 4px;
+      padding: 8px 9px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    body.pos-kiosk #view-pos .data-table tr:hover {
+      border-color: var(--primary-border);
+      background: #ffffff;
+    }
+
+    body.pos-kiosk #view-pos .data-table tr.table-row-selected {
+      border-left: 1px solid var(--primary) !important;
+      background: var(--primary-light) !important;
+    }
+
+    body.pos-kiosk #view-pos .data-table td {
+      display: block;
+      width: auto;
+      padding: 0;
+      border: 0;
+    }
+
+    body.pos-kiosk #view-pos .col-identity,
+    body.pos-kiosk #view-pos .col-category,
+    body.pos-kiosk #view-pos .col-stock,
+    body.pos-kiosk #view-pos .col-action,
+    body.pos-kiosk #view-pos .product-meta-mobile {
+      display: none !important;
+    }
+
+    body.pos-kiosk #view-pos .col-name {
+      display: block;
+      min-width: 0;
+      color: var(--text-main);
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    body.pos-kiosk #view-pos .product-name-text {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    body.pos-kiosk #view-pos .col-price {
+      width: auto;
+      color: var(--primary);
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    body.pos-kiosk .pos-cart-section {
+      position: static !important;
+      z-index: 1 !important;
+      width: clamp(280px, 30vw, 380px) !important;
+      max-width: 40vw !important;
+      height: 100% !important;
+      max-height: 100% !important;
+      flex-shrink: 0;
+      transform: none !important;
+      border-left: 1px solid var(--border) !important;
+      box-shadow: none !important;
+    }
+
+    body.pos-kiosk .pos-cart-header {
+      min-height: 40px;
+      padding: 7px 10px;
+    }
+
+    body.pos-kiosk .cart-title-group {
+      gap: 6px;
+    }
+
+    body.pos-kiosk .cart-title-group h2 {
+      font-size: 12px;
+    }
+
+    body.pos-kiosk .cart-counter-pill {
+      padding: 2px 6px;
+      font-size: 9px;
+    }
+
+    body.pos-kiosk .btn-cart-clear {
+      padding: 3px;
+      color: var(--danger);
+      font-size: 9px;
+    }
+
+    body.pos-kiosk .btn-cart-clear svg {
+      width: 11px;
+      height: 11px;
+    }
+
+    body.pos-kiosk .pos-cart-items-wrapper {
+      gap: 0;
+      padding: 4px 10px;
+    }
+
+    body.pos-kiosk .cart-item {
+      gap: 2px;
+      padding: 7px 0;
+      border: 0;
+      border-bottom: 1px solid var(--border-subtle);
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    body.pos-kiosk .cart-item-name {
+      font-size: 10px;
+    }
+
+    body.pos-kiosk .cart-item-remove {
+      font-size: 13px;
+    }
+
+    body.pos-kiosk .cart-item-body {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto auto;
+      row-gap: 3px;
+    }
+
+    body.pos-kiosk .cart-item-price {
+      grid-column: 1;
+      grid-row: 1;
+      font-size: 9px;
+    }
+
+    body.pos-kiosk .cart-qty-control {
+      grid-column: 1;
+      grid-row: 2;
+      justify-self: start;
+    }
+
+    body.pos-kiosk .qty-btn,
+    body.pos-kiosk .qty-input {
+      width: 20px;
+      height: 19px;
+      font-size: 9px;
+    }
+
+    body.pos-kiosk .cart-item-subtotal {
+      grid-column: 2;
+      grid-row: 1;
+      font-size: 10px;
+    }
+
+    body.pos-kiosk .held-carts-bar {
+      min-height: 26px;
+      padding: 5px 10px;
+      font-size: 9px;
+    }
+
+    body.pos-kiosk .held-cart-pill {
+      padding: 3px 5px;
+      font-size: 9px;
+    }
+
+    body.pos-kiosk .pos-cart-footer {
+      gap: 7px;
+      padding: 8px 10px 9px;
+    }
+
+    body.pos-kiosk .cart-calc-row {
+      font-size: 9px;
+    }
+
+    body.pos-kiosk .cart-grand-total-row {
+      padding-top: 5px;
+    }
+
+    body.pos-kiosk .cart-grand-total-label {
+      font-size: 10px;
+    }
+
+    body.pos-kiosk .cart-grand-total-value {
+      font-size: 18px;
+    }
+
+    body.pos-kiosk .cart-action-buttons {
+      gap: 6px;
+    }
+
+    body.pos-kiosk .btn-hold-cart,
+    body.pos-kiosk .btn-checkout {
+      min-height: 34px;
+      padding: 7px;
+      font-size: 9px;
+    }
+
+    body.pos-kiosk .pos-shortcut-bar {
+      position: absolute;
+      z-index: 10;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      display: flex;
+      height: 24px;
+      align-items: center;
+      gap: 22px;
+      padding: 0 12px;
+      border-top: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--secondary);
+      font-size: 9px;
+    }
+
+    body.pos-kiosk .pos-shortcut-bar kbd {
+      margin-right: 3px;
+      padding: 1px 4px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--bg-body);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 8px;
+    }
+
+    body.pos-kiosk .pos-shortcut-version {
+      margin-left: auto;
+      color: var(--text-light);
+    }
+  }
+
+@media print {
 
   .app-sidebar,
   .app-topbar,

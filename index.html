@@ -124,8 +124,13 @@
             <span></span>
           </button>
           <div id="topbarStoreName" class="topbar-store-name">TOKO KELONTONG QORSYA</div>
+          <span class="pos-cashier-badge"><span></span> Kasir Aktif #01</span>
         </div>
         <div class="topbar-right">
+          <div class="pos-clock" aria-label="Tanggal dan waktu">
+            <span id="posClockDate"></span>
+            <strong id="posClockTime"></strong>
+          </div>
           <!-- Mobile Quick Cart Button -->
           <button type="button" class="btn-icon-topbar btn-topbar-cart" onclick="POS.openMobileCart()" title="Lihat Keranjang Belanja">
             <span>🛒</span>
@@ -262,6 +267,10 @@
               <span>Subtotal:</span>
               <span id="posCartSubtotal" class="font-semibold">Rp 0</span>
             </div>
+            <div class="cart-calc-row">
+              <span>Diskon:</span>
+              <span id="posCartDiscount" class="font-semibold text-emerald">- Rp 0</span>
+            </div>
             <div class="cart-grand-total-row">
               <span class="cart-grand-total-label">TOTAL BELANJA</span>
               <span id="posCartGrandTotal" class="cart-grand-total-value">Rp 0</span>
@@ -276,6 +285,12 @@
               </button>
             </div>
           </div>
+        </div>
+        <div class="pos-shortcut-bar">
+          <span><kbd>F2</kbd> Cari Barang</span>
+          <span><kbd>F4</kbd> Kosongkan Keranjang</span>
+          <span><kbd>F8</kbd> Bayar / Selesai</span>
+          <span class="pos-shortcut-version">POS Kelontong v2.4</span>
         </div>
       </section>
 

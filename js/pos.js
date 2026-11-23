@@ -378,6 +378,7 @@ const POS = {
   renderCart() {
     const cartItemsContainer = document.getElementById('posCartItems');
     const subtotalEl = document.getElementById('posCartSubtotal');
+    const discountEl = document.getElementById('posCartDiscount');
     const grandTotalEl = document.getElementById('posCartGrandTotal');
     const totalQtyBadge = document.getElementById('posCartQtyBadge');
     const itemCountBadge = document.getElementById('posCartItemCount');
@@ -390,6 +391,7 @@ const POS = {
     if (totalQtyBadge) totalQtyBadge.textContent = `${totals.totalQty} item`;
     if (itemCountBadge) itemCountBadge.textContent = `${totals.itemCount} jenis`;
     if (subtotalEl) subtotalEl.textContent = App.formatRupiah(totals.subtotal);
+    if (discountEl) discountEl.textContent = `- ${App.formatRupiah(totals.discount)}`;
     if (grandTotalEl) grandTotalEl.textContent = App.formatRupiah(totals.grandTotal);
 
     // Sync mobile floating cart bar

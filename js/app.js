@@ -4,6 +4,9 @@
 const App = {
   async init() {
     console.log('Inisialisasi Toko Kelontong POS...');
+    document.body.classList.add('pos-kiosk');
+    this.updatePOSClock();
+    this.posClockTimer = setInterval(() => this.updatePOSClock(), 1000);
 
     // 1. Initialize IndexedDB
     try {
@@ -74,6 +77,28 @@ const App = {
     window.addEventListener('offline', () => this.updateOnlineBadge());
   },
 
+  updatePOSClock() {
+    const now = new Date();
+    const dateEl = document.getElementById('posClockDate');
+    const timeEl = document.getElementById('posClockTime');
+    if (dateEl) {
+      dateEl.textContent = now.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    }
+    if (timeEl) {
+      timeEl.textContent = now.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }) + ' WIB';
+    }
+  },
+
   // Mobile Sidebar Drawer
   toggleMobileSidebar() {
     const sidebar = document.querySelector('.app-sidebar');
@@ -91,6 +116,7 @@ const App = {
 
   switchTab(tabName) {
     State.activeTab = tabName;
+    document.body.classList.toggle('pos-kiosk', tabName === 'pos');
 
     // Close any open mobile drawers
     this.closeMobileSidebar();
