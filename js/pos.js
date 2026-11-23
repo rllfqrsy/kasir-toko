@@ -14,6 +14,9 @@ const POS = {
     this.renderProductsTable();
     this.renderCart();
     this.renderHeldCarts();
+    if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) {
+      this.switchMobileView('catalog');
+    }
 
     // Listen to state changes
     State.on('productsUpdated', () => {

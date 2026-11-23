@@ -125,6 +125,9 @@ const App = {
 
     // Specific tab activations
     if (tabName === 'pos') {
+      if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches && window.POS) {
+        POS.switchMobileView('catalog');
+      }
       setTimeout(() => {
         const input = document.getElementById('posSearchInput');
         if (input) {
