@@ -482,6 +482,155 @@ const ExcelService = {
     App.showToast('Laporan transaksi Excel berhasil diunduh!', 'success');
   },
 
+  openLaporanHarianModal() {
+    const modal = document.getElementById('laporanHarianModal');
+    if (!modal) return;
+    // Default to today
+    document.getElementById('laporanHarianDate').value = new Date().toISOString().slice(0, 10);
+    modal.classList.add('modal-open');
+  },
+
+  async exportLaporanHarianFromModal() {
+    const dateVal = document.getElementById('laporanHarianDate')?.value;
+    if (!dateVal) { App.showToast('Pilih tanggal laporan terlebih dahulu!', 'warning'); return; }
+    App.closeModal('laporanHarianModal');
+    await this.exportLaporanHarian(dateVal);
+  },
+
+  // -------------------------------------------------------------
+  // LAPORAN HARIAN EXCEL
+  // -------------------------------------------------------------
+
+  async exportLaporanHarian(targetDate) {
+    if (!window.XLSX) { App.showToast('SheetJS belum siap.', 'error'); return; }
+
+    const dateStr = targetDate || new Date().toISOString().slice(0, 10);
+    const txList = await DB.getTransactionsByDateRange(dateStr, dateStr);
+    const sessions = await DB.getAllCashSessions(100);
+    const daySessions = sessions.filter(s => s.date === dateStr);
+
+    if (txList.length === 0 && daySessions.length === 0) {
+      App.showToast('Tidak ada data untuk tanggal ini!', 'warning'); return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const dateLabel = new Date(dateStr + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+
+    // ---- SHEET 1: RINGKASAN HARIAN ----
+    const totalOmzet = txList.reduce((s, t) => s + (t.grandTotal || 0), 0);
+    const totalHPP   = txList.reduce((s, t) => s + (t.totalBuyPrice || 0), 0);
+    const totalLaba  = totalOmzet - totalHPP;
+    const totalTunai = txList.filter(t => t.paymentMethod === 'Tunai').reduce((s, t) => s + t.grandTotal, 0);
+    const totalQris  = txList.filter(t => t.paymentMethod === 'QRIS').reduce((s, t) => s + t.grandTotal, 0);
+    const totalTransfer = txList.filter(t => t.paymentMethod === 'Transfer').reduce((s, t) => s + t.grandTotal, 0);
+    const totalItems = txList.reduce((s, t) => s + (t.totalQty || 0), 0);
+    const kasAwal    = daySessions.length > 0 ? daySessions[0].openingCash || 0 : 0;
+    const kasAkhir   = daySessions.length > 0 && daySessions[0].closingCash !== null ? daySessions[0].closingCash : null;
+    const expKas     = kasAwal + totalTunai;
+    const marginPct  = totalOmzet > 0 ? ((totalLaba / totalOmzet) * 100).toFixed(1) : 0;
+    const storeName  = State.storeSettings.storeName || 'TOKO KELONTONG QORSYA';
+
+    const summaryRows = [
+      { 'Keterangan': storeName, 'Nilai': '' },
+      { 'Keterangan': `LAPORAN HARIAN: ${dateLabel}`, 'Nilai': '' },
+      { 'Keterangan': '', 'Nilai': '' },
+      { 'Keterangan': '--- RINGKASAN PENJUALAN ---', 'Nilai': '' },
+      { 'Keterangan': 'Total Transaksi', 'Nilai': txList.length },
+      { 'Keterangan': 'Total Item Terjual', 'Nilai': totalItems },
+      { 'Keterangan': 'Total Omzet (Penjualan)', 'Nilai': totalOmzet },
+      { 'Keterangan': 'Total Modal HPP', 'Nilai': totalHPP },
+      { 'Keterangan': 'Laba Kotor', 'Nilai': totalLaba },
+      { 'Keterangan': 'Margin Laba (%)', 'Nilai': `${marginPct}%` },
+      { 'Keterangan': '', 'Nilai': '' },
+      { 'Keterangan': '--- RINCIAN METODE BAYAR ---', 'Nilai': '' },
+      { 'Keterangan': 'Penjualan Tunai', 'Nilai': totalTunai },
+      { 'Keterangan': 'Penjualan QRIS', 'Nilai': totalQris },
+      { 'Keterangan': 'Penjualan Transfer Bank', 'Nilai': totalTransfer },
+      { 'Keterangan': '', 'Nilai': '' },
+      { 'Keterangan': '--- REKONSILIASI KAS ---', 'Nilai': '' },
+      { 'Keterangan': 'Uang Kas Awal (Pembukaan)', 'Nilai': kasAwal },
+      { 'Keterangan': 'Penerimaan Tunai Hari Ini', 'Nilai': totalTunai },
+      { 'Keterangan': 'Ekspektasi Kas di Laci', 'Nilai': expKas },
+      { 'Keterangan': 'Kas Akhir Aktual (Penutupan)', 'Nilai': kasAkhir !== null ? kasAkhir : 'Belum ditutup' },
+      { 'Keterangan': 'Selisih Kas', 'Nilai': kasAkhir !== null ? kasAkhir - expKas : 'Belum ditutup' },
+    ];
+    const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+    wsSummary['!cols'] = [{ wch: 36 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Ringkasan_Harian');
+
+    // ---- SHEET 2: DAFTAR TRANSAKSI ----
+    const txData = txList.map((tx, idx) => ({
+      'No': idx + 1,
+      'No_Nota': tx.invoiceNo,
+      'Waktu': new Date(tx.date).toLocaleTimeString('id-ID'),
+      'Kasir': tx.cashier || 'Kasir',
+      'Metode_Bayar': tx.paymentMethod,
+      'Jumlah_Item': tx.totalQty,
+      'Omzet': tx.grandTotal,
+      'Modal_HPP': tx.totalBuyPrice,
+      'Laba_Kotor': tx.grossProfit,
+      'Uang_Diterima': tx.amountPaid,
+      'Kembalian': tx.change,
+      'Catatan': tx.note || ''
+    }));
+    if (txData.length > 0) {
+      const wsTx = XLSX.utils.json_to_sheet(txData);
+      wsTx['!cols'] = [{ wch: 4 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(wb, wsTx, 'Daftar_Transaksi');
+    }
+
+    // ---- SHEET 3: DETAIL BARANG TERJUAL ----
+    const detailData = [];
+    txList.forEach(tx => {
+      tx.items.forEach(it => {
+        const hpp = (it.buyPrice || 0) * it.qty;
+        detailData.push({
+          'No_Nota': tx.invoiceNo,
+          'Waktu': new Date(tx.date).toLocaleTimeString('id-ID'),
+          'Barcode': it.barcode || '',
+          'Kode_Internal': it.code || '',
+          'Nama_Produk': it.name,
+          'Satuan': it.unit || 'Pcs',
+          'Qty': it.qty,
+          'Harga_Beli': it.buyPrice,
+          'Harga_Jual': it.sellPrice,
+          'Subtotal': it.subtotal,
+          'Total_HPP': hpp,
+          'Laba_Item': it.subtotal - hpp
+        });
+      });
+    });
+    if (detailData.length > 0) {
+      const wsDetail = XLSX.utils.json_to_sheet(detailData);
+      wsDetail['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 30 }, { wch: 8 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail_Barang_Terjual');
+    }
+
+    // ---- SHEET 4: SESI KAS ----
+    if (daySessions.length > 0) {
+      const kasData = daySessions.map(s => ({
+        'Dibuka': new Date(s.openedAt).toLocaleTimeString('id-ID'),
+        'Dibuka_Oleh': s.openedBy,
+        'Kas_Awal': s.openingCash,
+        'Ditutup': s.closedAt ? new Date(s.closedAt).toLocaleTimeString('id-ID') : 'Belum',
+        'Ditutup_Oleh': s.closedBy || '-',
+        'Kas_Akhir_Aktual': s.closingCash !== null ? s.closingCash : '-',
+        'Kas_Ekspektasi': s.expectedCash !== null ? s.expectedCash : '-',
+        'Selisih': s.cashDifference !== null ? s.cashDifference : '-',
+        'Status': s.status === 'open' ? 'Toko Buka' : 'Toko Tutup',
+        'Catatan_Buka': s.note || '',
+        'Catatan_Tutup': s.closeNote || ''
+      }));
+      const wsKas = XLSX.utils.json_to_sheet(kasData);
+      wsKas['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 24 }, { wch: 24 }];
+      XLSX.utils.book_append_sheet(wb, wsKas, 'Sesi_Kas');
+    }
+
+    const fileDateStr = dateStr.replace(/-/g, '');
+    XLSX.writeFile(wb, `Laporan_Harian_${fileDateStr}.xlsx`);
+    App.showToast(`Laporan harian ${dateLabel} berhasil diunduh!`, 'success');
+  },
+
   downloadTemplateExcel() {
     if (!window.XLSX) {
       App.showToast('SheetJS belum siap.', 'error');

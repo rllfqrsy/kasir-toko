@@ -86,6 +86,13 @@ const POS = {
         }
       }
 
+      // F3: Buka Scanner Kamera
+      if (e.key === 'F3') {
+        e.preventDefault();
+        App.switchTab('pos');
+        if (window.POSScanner) POSScanner.open();
+      }
+
       // F4: Clear Cart
       if (e.key === 'F4') {
         e.preventDefault();

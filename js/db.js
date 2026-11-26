@@ -4,7 +4,7 @@
  */
 const DB = {
   dbName: 'TokoKelontongPOS_DB',
-  dbVersion: 1,
+  dbVersion: 2,
   _db: null,
 
   async init() {
@@ -46,6 +46,20 @@ const DB = {
         // 4. Settings Store
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'key' });
+        }
+
+        // 5. Cash Drawer Sessions (Pembukaan & Penutupan Toko)
+        if (!db.objectStoreNames.contains('cash_sessions')) {
+          const csStore = db.createObjectStore('cash_sessions', { keyPath: 'id', autoIncrement: true });
+          csStore.createIndex('date', 'date', { unique: false });
+          csStore.createIndex('status', 'status', { unique: false });
+        }
+
+        // 6. Stock Opname (Pengecekan Fisik Barang)
+        if (!db.objectStoreNames.contains('stock_opname')) {
+          const soStore = db.createObjectStore('stock_opname', { keyPath: 'id', autoIncrement: true });
+          soStore.createIndex('date', 'date', { unique: false });
+          soStore.createIndex('status', 'status', { unique: false });
         }
       };
 
@@ -800,6 +814,214 @@ const DB = {
       tx.objectStore('stock_logs').clear();
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => reject(tx.error);
+    });
+  },
+
+  // -------------------------------------------------------------
+  // CASH DRAWER SESSIONS (PEMBUKAAN & PENUTUPAN TOKO)
+  // -------------------------------------------------------------
+
+  async getActiveCashSession() {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('cash_sessions', 'readonly');
+      const store = tx.objectStore('cash_sessions');
+      const idx = store.index('status');
+      const req = idx.getAll('open');
+      req.onsuccess = () => {
+        const results = req.result || [];
+        // Return the most recently opened session
+        results.sort((a, b) => new Date(b.openedAt) - new Date(a.openedAt));
+        resolve(results[0] || null);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  },
+
+  async openCashSession(data) {
+    // data: { openingCash, openedBy, note }
+    const db = await this.getDB();
+    const now = new Date().toISOString();
+    const record = {
+      date: now.slice(0, 10),
+      openedAt: now,
+      openingCash: Number(data.openingCash) || 0,
+      openedBy: data.openedBy || 'Kasir',
+      note: data.note || '',
+      status: 'open',
+      closedAt: null,
+      closingCash: null,
+      closedBy: null,
+      closeNote: '',
+      expectedCash: null,
+      cashDifference: null
+    };
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('cash_sessions', 'readwrite');
+      const store = tx.objectStore('cash_sessions');
+      const req = store.add(record);
+      req.onsuccess = (e) => { record.id = e.target.result; };
+      tx.oncomplete = () => resolve(record);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+
+  async closeCashSession(sessionId, data) {
+    // data: { closingCash, closedBy, closeNote, expectedCash }
+    const db = await this.getDB();
+    const now = new Date().toISOString();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('cash_sessions', 'readwrite');
+      const store = tx.objectStore('cash_sessions');
+      const getReq = store.get(Number(sessionId));
+      getReq.onsuccess = () => {
+        const session = getReq.result;
+        if (!session) { tx.abort(); reject(new Error('Sesi kasir tidak ditemukan!')); return; }
+        const closingCash = Number(data.closingCash) || 0;
+        const expectedCash = Number(data.expectedCash) || 0;
+        const updated = {
+          ...session,
+          status: 'closed',
+          closedAt: now,
+          closingCash,
+          closedBy: data.closedBy || 'Kasir',
+          closeNote: data.closeNote || '',
+          expectedCash,
+          cashDifference: closingCash - expectedCash
+        };
+        store.put(updated);
+        tx.oncomplete = () => resolve(updated);
+      };
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+
+  async getAllCashSessions(limit = 100) {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('cash_sessions', 'readonly');
+      const req = tx.objectStore('cash_sessions').getAll();
+      req.onsuccess = () => {
+        const results = (req.result || []).sort((a, b) => new Date(b.openedAt) - new Date(a.openedAt));
+        resolve(results.slice(0, limit));
+      };
+      req.onerror = () => reject(req.error);
+    });
+  },
+
+  async getTransactionsByDateRange(startDate, endDate) {
+    const all = await this.getAllTransactions(10000);
+    return all.filter(t => {
+      const d = t.date.slice(0, 10);
+      return d >= startDate && d <= endDate;
+    });
+  },
+
+  // -------------------------------------------------------------
+  // STOCK OPNAME (PENGECEKAN FISIK BARANG)
+  // -------------------------------------------------------------
+
+  async createStockOpname(data) {
+    // data: { name, note, items: [{productId, productName, barcode, code, systemStock, physicalStock}] }
+    const db = await this.getDB();
+    const now = new Date().toISOString();
+    const record = {
+      date: now.slice(0, 10),
+      createdAt: now,
+      name: data.name || `Opname ${now.slice(0, 10)}`,
+      note: data.note || '',
+      status: data.status || 'draft', // draft | completed
+      items: data.items || [],
+      createdBy: data.createdBy || 'Kasir'
+    };
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('stock_opname', 'readwrite');
+      const req = tx.objectStore('stock_opname').add(record);
+      req.onsuccess = (e) => { record.id = e.target.result; };
+      tx.oncomplete = () => resolve(record);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+
+  async updateStockOpname(id, updates) {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('stock_opname', 'readwrite');
+      const store = tx.objectStore('stock_opname');
+      const getReq = store.get(Number(id));
+      getReq.onsuccess = () => {
+        const existing = getReq.result;
+        if (!existing) { tx.abort(); reject(new Error('Data opname tidak ditemukan!')); return; }
+        const updated = { ...existing, ...updates };
+        store.put(updated);
+        tx.oncomplete = () => resolve(updated);
+      };
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+
+  async getAllStockOpname() {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction('stock_opname', 'readonly').objectStore('stock_opname').getAll();
+      req.onsuccess = () => {
+        resolve((req.result || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+      };
+      req.onerror = () => reject(req.error);
+    });
+  },
+
+  async applyStockOpnameAdjustments(opnameId) {
+    // Apply physical count differences back to product stock
+    const db = await this.getDB();
+    return new Promise(async (resolve, reject) => {
+      const opnameStore = db.transaction('stock_opname', 'readonly').objectStore('stock_opname');
+      const getReq = opnameStore.get(Number(opnameId));
+      getReq.onsuccess = async () => {
+        const opname = getReq.result;
+        if (!opname) { reject(new Error('Data opname tidak ditemukan!')); return; }
+
+        const now = new Date().toISOString();
+        const tx2 = db.transaction(['products', 'stock_logs', 'stock_opname'], 'readwrite');
+        const pStore = tx2.objectStore('products');
+        const lStore = tx2.objectStore('stock_logs');
+        const oStore = tx2.objectStore('stock_opname');
+
+        opname.items.forEach(item => {
+          if (item.physicalStock === null || item.physicalStock === undefined) return;
+          const diff = item.physicalStock - item.systemStock;
+          if (diff === 0) return;
+
+          const getP = pStore.get(Number(item.productId));
+          getP.onsuccess = () => {
+            const prod = getP.result;
+            if (!prod) return;
+            const stockBefore = prod.stock;
+            prod.stock = item.physicalStock;
+            prod.updatedAt = now;
+            pStore.put(prod);
+            lStore.add({
+              productId: prod.id,
+              productName: prod.name,
+              type: 'ADJUSTMENT',
+              qtyChange: diff,
+              stockBefore,
+              stockAfter: item.physicalStock,
+              reference: `Stock Opname #${opname.id}: ${opname.name}`,
+              date: now
+            });
+          };
+        });
+
+        // Mark opname as completed
+        opname.status = 'completed';
+        opname.completedAt = now;
+        oStore.put(opname);
+
+        tx2.oncomplete = () => resolve(true);
+        tx2.onerror = () => reject(tx2.error);
+      };
+      getReq.onerror = () => reject(getReq.error);
     });
   }
 };

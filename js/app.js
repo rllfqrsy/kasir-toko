@@ -29,6 +29,8 @@ const App = {
     ExcelService.init();
     BackupService.init();
     await PrinterService.init();
+    await KasirSession.init();
+    await StockOpname.init();
 
     // 4. Bind Global UI Events & Shortcuts
     this.bindGlobalEvents();
@@ -168,6 +170,10 @@ const App = {
       Inventory.renderStockLogs();
     } else if (tabName === 'transactions') {
       Transactions.loadTransactions();
+    } else if (tabName === 'kasir') {
+      KasirSession.renderView();
+    } else if (tabName === 'opname') {
+      StockOpname.renderView();
     }
   },
 

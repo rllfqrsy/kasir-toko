@@ -3672,3 +3672,199 @@ overflow-y: auto;
   }
 }
 
+
+/* ==========================================================================
+   FITUR BARU: KASIR SESSION, LAPORAN HARIAN, STOCK OPNAME
+   ========================================================================== */
+
+/* --- Cash Session Topbar Badge --- */
+.cash-session-badge {
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+  margin-left: 4px;
+}
+.cash-session-badge:hover { opacity: 0.8; }
+
+/* --- Btn Large --- */
+.btn-lg {
+  padding: 12px 28px;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 10px;
+}
+
+/* --- KPI Grid improved (allow single-col spanning) --- */
+.kpi-grid .kpi-card[style*="grid-column"] {
+  grid-column: 1 / -1;
+}
+
+/* --- Opname Camera Area --- */
+.opname-camera-area {
+  margin-bottom: 12px;
+}
+
+.opname-camera-overlay {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 12px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+  aspect-ratio: 4/3;
+}
+
+.opname-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.opname-scan-frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.opname-scan-frame::before {
+  content: '';
+  position: absolute;
+  width: 70%;
+  height: 50%;
+  border: 2.5px solid rgba(5, 150, 105, 0.9);
+  border-radius: 8px;
+  box-shadow: 0 0 0 2000px rgba(0,0,0,0.35);
+}
+
+.opname-scan-line {
+  position: absolute;
+  width: 66%;
+  height: 3px;
+  background: rgba(5, 150, 105, 0.6);
+  border-radius: 2px;
+  animation: scanMove 2s ease-in-out infinite;
+  transition: background 0.15s;
+}
+
+@keyframes scanMove {
+  0%   { top: 28%; }
+  50%  { top: 70%; }
+  100% { top: 28%; }
+}
+
+.opname-camera-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.9);
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  white-space: nowrap;
+}
+
+/* --- Opname Table Selisih Highlight --- */
+#opnameScanTableBody tr[style*="background"] td {
+  border-top: 1px solid #fecaca;
+  border-bottom: 1px solid #fecaca;
+}
+
+/* --- Laporan Harian Modal alert info --- */
+.alert-info {
+  background: var(--info-light);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: #1e40af;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+/* --- Close Session diff live display --- */
+#closeSessionDiff {
+  font-size: 1.1rem;
+  transition: color 0.2s;
+}
+
+/* --- History table row hover for kasir session --- */
+#kasirSessionHistoryTbody tr:hover {
+  background: var(--bg-body);
+}
+
+/* --- Opname camera controls --- */
+.opname-camera-controls .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Make scanner modal body scrollable on small screens */
+#opnameScannerModal .modal-body {
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
+/* Mobile adjustments for new sections */
+@media (max-width: 768px) {
+  .cash-session-badge {
+    display: none;
+  }
+  .opname-camera-overlay {
+    max-width: 100%;
+  }
+}
+
+/* ==========================================================================
+   TOMBOL KAMERA SCANNER DI KASIR POS
+   ========================================================================== */
+
+.btn-cam-scan {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  margin-left: 6px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  height: 36px;
+}
+.btn-cam-scan:hover { background: var(--primary-hover); }
+.btn-cam-scan svg { flex-shrink: 0; }
+
+@media (max-width: 540px) {
+  .cam-btn-label { display: none; }
+  .btn-cam-scan { padding: 6px 8px; }
+}
+
+/* Status bar di modal POS scanner */
+.pos-scanner-status {
+  background: var(--bg-body);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+}
+
+/* Viewport POS scanner */
+.pos-scanner-viewport {
+  margin-bottom: 4px;
+}

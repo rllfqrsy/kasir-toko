@@ -1,23 +1,25 @@
-const CACHE_NAME = 'kelontong-pos-v18';
+const CACHE_NAME = 'kelontong-pos-v19';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './receipt-print.html',
   './manifest.json',
-  './css/style.css?v=20261123.3',
+  './css/style.css',
   './css/receipt-print.css',
   './vendor/xlsx.full.min.js',
   './icons/icon.svg',
   './js/db.js',
   './js/state.js',
-  './js/printer.js?v=20261123.9',
-  './js/pos.js?v=20261123.4',
+  './js/printer.js',
+  './js/pos.js',
   './js/products.js',
   './js/inventory.js',
   './js/transactions.js',
   './js/excel.js',
   './js/backup.js',
-  './js/app.js?v=20261123.2'
+  './js/kasir.js',
+  './js/opname.js',
+  './js/app.js'
 ];
 
 self.addEventListener('install', (event) => {

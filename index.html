@@ -69,6 +69,23 @@
           <span>Laporan & Transaksi</span>
         </button>
 
+        <button type="button" class="sidebar-nav-item" data-tab="kasir">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+            <circle cx="12" cy="12" r="2"></circle>
+            <path d="M6 12h.01M18 12h.01"></path>
+          </svg>
+          <span>Pembukaan / Penutupan Toko</span>
+        </button>
+
+        <button type="button" class="sidebar-nav-item" data-tab="opname">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"></path>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+          <span>Stock Opname (Cek Fisik)</span>
+        </button>
+
         <button type="button" class="sidebar-nav-item" data-tab="excel">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -131,6 +148,10 @@
             <span id="posClockDate"></span>
             <strong id="posClockTime"></strong>
           </div>
+          <!-- Cash Session Status Badge -->
+          <div id="cashSessionBadge" class="status-badge status-offline cash-session-badge" onclick="App.switchTab('kasir')" style="cursor:pointer;" title="Pembukaan/Penutupan Toko">
+            <span class="status-dot"></span> Toko Belum Dibuka
+          </div>
           <!-- Mobile Quick Cart Button -->
           <button type="button" class="btn-icon-topbar btn-topbar-cart" onclick="POS.openMobileCart()" title="Lihat Keranjang Belanja">
             <span>🛒</span>
@@ -183,6 +204,13 @@
                 placeholder="Scan barcode scanner atau ketik nama/kode barang... (Tekan Enter)" autofocus
                 autocomplete="off">
               <span class="shortcut-indicator">F2</span>
+              <button type="button" class="btn-cam-scan" onclick="POSScanner.open()" title="Scan Barcode dengan Kamera (F3)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                  <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+                <span class="cam-btn-label">Kamera</span>
+              </button>
             </div>
 
             <div class="pos-category-bar" id="posCategoryPills">
@@ -288,9 +316,10 @@
         </div>
         <div class="pos-shortcut-bar">
           <span><kbd>F2</kbd> Cari Barang</span>
+          <span><kbd>F3</kbd> Scanner Kamera</span>
           <span><kbd>F4</kbd> Kosongkan Keranjang</span>
           <span><kbd>F8</kbd> Bayar / Selesai</span>
-          <span class="pos-shortcut-version">POS Kelontong v2.4</span>
+          <span class="pos-shortcut-version">POS Kelontong v2.5</span>
         </div>
       </section>
 
@@ -478,9 +507,14 @@
             <h2>Riwayat Penjualan & Laporan Keuangan</h2>
             <p>Pantau omzet pendapatan, harga pokok penjualan (HPP), dan laba kotor toko.</p>
           </div>
-          <button type="button" class="btn btn-secondary" onclick="ExcelService.exportTransactionsExcel()">
-            📑 Export Laporan Excel (.xlsx)
-          </button>
+          <div class="flex gap-2">
+            <button type="button" class="btn btn-secondary" onclick="ExcelService.openLaporanHarianModal()">
+              📅 Laporan Harian Excel
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="ExcelService.exportTransactionsExcel()">
+              📑 Export Laporan Excel (.xlsx)
+            </button>
+          </div>
         </div>
 
         <!-- KPI Summary Cards -->
@@ -819,6 +853,88 @@
         </div>
       </section>
 
+      <!-- VIEW 8: PEMBUKAAN & PENUTUPAN TOKO (KASIR SESSION) -->
+      <section id="view-kasir" class="view-panel">
+        <div class="section-header">
+          <div>
+            <h2>Pembukaan & Penutupan Toko</h2>
+            <p>Catat uang kas awal saat buka toko dan hitung saldo akhir kas saat tutup.</p>
+          </div>
+          <div id="kasirSessionHeaderAction">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- KPI Status -->
+        <div class="kpi-grid" id="kasirSessionKpi">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Rincian Penjualan Hari Ini -->
+        <div id="kasirSessionBreakdown">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Riwayat Sesi -->
+        <div class="card mt-3">
+          <h3 class="font-semibold mb-3">Riwayat Sesi Kasir (30 Terakhir)</h3>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Waktu Buka</th>
+                  <th>Status</th>
+                  <th>Kasir</th>
+                  <th>Kas Awal</th>
+                  <th>Kas Akhir Aktual</th>
+                  <th>Kas Ekspektasi</th>
+                  <th>Selisih</th>
+                  <th>Waktu Tutup</th>
+                </tr>
+              </thead>
+              <tbody id="kasirSessionHistoryTbody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 9: STOCK OPNAME (PENGECEKAN FISIK BARANG) -->
+      <section id="view-opname" class="view-panel">
+        <div class="section-header">
+          <div>
+            <h2>Stock Opname (Pengecekan Fisik Barang)</h2>
+            <p>Scan barcode dengan kamera atau scanner fisik untuk membandingkan stok nyata dengan data sistem.</p>
+          </div>
+          <button type="button" class="btn btn-primary" onclick="StockOpname.startNewSession()">
+            📷 Mulai Stock Opname Baru
+          </button>
+        </div>
+
+        <!-- Riwayat Opname -->
+        <div class="card">
+          <h3 class="font-semibold mb-3">Riwayat Stock Opname</h3>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nama Sesi</th>
+                  <th>Tanggal</th>
+                  <th>Status</th>
+                  <th class="text-center">Produk Dicek</th>
+                  <th class="text-center">Selisih</th>
+                  <th class="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="opnameHistoryTbody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- Bottom Navigation for Mobile & Small Tablets -->
       <nav class="mobile-bottom-nav">
         <button type="button" class="bottom-nav-item active" data-tab="pos" onclick="App.switchTab('pos'); POS.switchMobileView('catalog')">
@@ -1136,6 +1252,10 @@
             <span class="kbd">F2</span>
           </div>
           <div class="shortcut-row">
+            <span>Buka Scanner Kamera Barcode</span>
+            <span class="kbd">F3</span>
+          </div>
+          <div class="shortcut-row">
             <span>Buka Pembayaran / Bayar</span>
             <span class="kbd">F8</span>
           </div>
@@ -1171,6 +1291,276 @@
     </div>
   </div>
 
+  <!-- MODAL: POS CAMERA SCANNER -->
+  <div id="posScannerModal" class="modal">
+    <div class="modal-content" style="max-width:520px;">
+      <div class="modal-header">
+        <div>
+          <h3>📷 Scanner Barcode Kamera</h3>
+          <div id="posScannerInfo" class="text-xs text-muted mt-1">Memuat info dukungan...</div>
+        </div>
+        <button type="button" class="modal-close" onclick="POSScanner.close()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding-bottom:8px;">
+
+        <!-- Camera viewport -->
+        <div class="pos-scanner-viewport">
+          <div id="posScannerOverlay" class="opname-camera-overlay" style="display:none; position:relative; width:100%; aspect-ratio:4/3; border-radius:8px; overflow:hidden; background:#000;">
+            <video id="posScannerVideo" class="opname-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;"></video>
+            <!-- Hidden canvas for ZXing -->
+            <canvas id="posScannerCanvas" style="display:none;"></canvas>
+            <div class="opname-scan-frame">
+              <div id="posScanLine" class="opname-scan-line"></div>
+            </div>
+            <div class="opname-camera-hint">Arahkan kamera ke barcode barang</div>
+            <span id="posScanEngineBadge" style="display:none; position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:#fff; font-size:0.7rem; padding:2px 8px; border-radius:10px;"></span>
+          </div>
+        </div>
+
+        <!-- Camera controls -->
+        <div class="flex gap-2 mb-3 mt-2">
+          <button type="button" id="posScanStartCamBtn" class="btn btn-secondary" onclick="POSScanner.startCamera()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            Aktifkan Kamera
+          </button>
+          <button type="button" id="posScanStopCamBtn" class="btn btn-secondary" onclick="POSScanner.stopCamera()" style="display:none;">
+            ⏹ Matikan Kamera
+          </button>
+        </div>
+
+        <!-- Status bar -->
+        <div id="posScannerStatus" class="pos-scanner-status text-sm mb-3">
+          <span>📷</span> <span class="text-muted">Tekan "Aktifkan Kamera" atau ketik kode di bawah.</span>
+        </div>
+
+        <!-- Manual input -->
+        <div class="form-group mb-2">
+          <label class="form-label">Ketik / Scan Manual (tekan Enter):</label>
+          <div class="search-input-wrapper">
+            <svg class="search-icon-left" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect><path d="M14 14h3v3h3v-3h-3v-3h-3z"></path>
+            </svg>
+            <input type="text" id="posScannerManualInput" class="pos-search-input"
+              placeholder="Ketik barcode atau kode produk lalu Enter..."
+              autocomplete="off"
+              onkeydown="POSScanner.handleManualInput(event)">
+          </div>
+        </div>
+
+        <p class="text-xs text-muted">Setiap barcode yang terdeteksi langsung menambah <strong>+1</strong> produk ke keranjang belanja.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="POSScanner.close()">✅ Selesai Scan (Tutup)</button>
+      </div>
+    </div>
+  </div>
+  <div id="openSessionModal" class="modal">
+    <div class="modal-content" style="max-width:480px;">
+      <div class="modal-header">
+        <h3>🔓 Buka Toko — Catat Uang Kas Awal</h3>
+        <button type="button" class="modal-close" onclick="KasirSession.closeOpenSessionModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-sm text-muted mb-3">Hitung dan masukkan total uang tunai yang ada di laci kas sebelum transaksi dimulai.</p>
+        <div class="form-group">
+          <label class="form-label">Jumlah Uang Kas Awal (Rp):*</label>
+          <input type="number" id="openSessionCash" class="form-control" min="0" placeholder="Contoh: 500000" inputmode="numeric" style="font-size:1.2rem; font-weight:600;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nama Petugas yang Membuka:</label>
+          <input type="text" id="openSessionBy" class="form-control" placeholder="Kasir 1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Catatan (Opsional):</label>
+          <input type="text" id="openSessionNote" class="form-control" placeholder="Contoh: Kas dari brankas">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="KasirSession.closeOpenSessionModal()">Batal</button>
+        <button type="button" class="btn btn-primary" onclick="KasirSession.submitOpenSession()">🔓 Buka Toko Sekarang</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: TUTUP TOKO -->
+  <div id="closeSessionModal" class="modal" data-expected-cash="0">
+    <div class="modal-content" style="max-width:520px;">
+      <div class="modal-header">
+        <h3>🔒 Tutup Toko — Hitung Kas Akhir</h3>
+        <button type="button" class="modal-close" onclick="KasirSession.closeCloseSessionModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="card" style="background:var(--bg-secondary,#f8fafc); margin-bottom:16px; padding:14px;">
+          <div class="flex-between mb-2">
+            <span class="text-sm text-muted">Kas Awal Toko:</span>
+            <span class="font-semibold" id="closeSessionOpeningCash">Rp 0</span>
+          </div>
+          <div class="flex-between mb-2">
+            <span class="text-sm text-muted">+ Penjualan Tunai Hari Ini:</span>
+            <span class="font-semibold text-emerald" id="closeSessionTodayCash">Rp 0</span>
+          </div>
+          <div class="flex-between" style="border-top:1px solid var(--border); padding-top:10px;">
+            <span class="text-sm font-bold">= Ekspektasi Kas di Laci:</span>
+            <span class="font-bold text-emerald" id="closeSessionExpected">Rp 0</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jumlah Kas Aktual di Laci (Rp):*</label>
+          <input type="number" id="closeSessionActualCash" class="form-control" min="0" placeholder="Hitung fisik uang lalu masukkan" inputmode="numeric" style="font-size:1.2rem; font-weight:600;">
+        </div>
+        <div class="flex-between py-2 mb-2" style="border:2px solid var(--border); border-radius:8px; padding:12px;">
+          <span class="text-sm font-bold">Selisih Kas:</span>
+          <span class="font-bold text-muted" id="closeSessionDiff">—</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ditutup Oleh:</label>
+          <input type="text" id="closeSessionBy" class="form-control" placeholder="Kasir 1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Catatan Penutupan (Opsional):</label>
+          <input type="text" id="closeSessionNote" class="form-control" placeholder="Contoh: Uang disetor ke brankas">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="KasirSession.closeCloseSessionModal()">Batal</button>
+        <button type="button" class="btn btn-danger" onclick="KasirSession.submitCloseSession()">🔒 Tutup Toko & Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: LAPORAN HARIAN -->
+  <div id="laporanHarianModal" class="modal">
+    <div class="modal-content" style="max-width:420px;">
+      <div class="modal-header">
+        <h3>📅 Export Laporan Harian Excel</h3>
+        <button type="button" class="modal-close" onclick="App.closeModal('laporanHarianModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-sm text-muted mb-3">Pilih tanggal untuk membuat laporan harian lengkap: ringkasan omzet, laba, rekonsiliasi kas, dan detail transaksi.</p>
+        <div class="form-group">
+          <label class="form-label">Tanggal Laporan:</label>
+          <input type="date" id="laporanHarianDate" class="form-control">
+        </div>
+        <div class="alert-info text-xs mt-2" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:10px; color:#1e40af;">
+          📊 File Excel akan berisi 4 sheet:<br>
+          1. Ringkasan Harian (omzet, HPP, laba, rekonsiliasi kas)<br>
+          2. Daftar Transaksi<br>
+          3. Detail Barang Terjual<br>
+          4. Sesi Kas (pembukaan &amp; penutupan)
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="App.closeModal('laporanHarianModal')">Batal</button>
+        <button type="button" class="btn btn-primary" onclick="ExcelService.exportLaporanHarianFromModal()">📥 Download Laporan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: STOCK OPNAME SCANNER -->
+  <div id="opnameScannerModal" class="modal">
+    <div class="modal-content modal-lg" style="max-width:860px;">
+      <div class="modal-header">
+        <div>
+          <h3>📷 Scanner Stock Opname</h3>
+          <span id="opnameScanCount" class="text-xs text-muted">0 produk discan</span>
+          &nbsp;&bull;&nbsp;
+          <span id="opnameSelisihCount" class="text-xs text-muted">—</span>
+        </div>
+        <button type="button" class="modal-close" onclick="StockOpname.closeScannerModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Info dukungan browser -->
+        <div id="opnameScannerInfo" class="text-xs text-muted mb-2">Memeriksa dukungan browser...</div>
+
+        <!-- Nama Sesi -->
+        <div class="form-group mb-3" style="max-width:400px;">
+          <label class="form-label">Nama Sesi Opname:</label>
+          <input type="text" id="opnameSessionName" class="form-control" placeholder="Contoh: Opname Mingguan — Desember 2026">
+        </div>
+
+        <!-- Camera Area -->
+        <div class="opname-camera-area">
+          <div id="opnameCameraOverlay" class="opname-camera-overlay" style="display:none;">
+            <video id="opnameCameraVideo" class="opname-video" autoplay playsinline muted></video>
+            <!-- Canvas tersembunyi untuk ZXing fallback -->
+            <canvas id="opnameScanCanvas" style="display:none;"></canvas>
+            <div class="opname-scan-frame">
+              <div id="opnameScanLine" class="opname-scan-line"></div>
+            </div>
+            <div class="opname-camera-hint">Arahkan kamera ke barcode barang</div>
+            <span id="opnameScanEngineBadge" style="display:none; position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:#fff; font-size:0.7rem; padding:2px 8px; border-radius:10px;"></span>
+          </div>
+          <div class="opname-camera-controls flex gap-2 mb-3">
+            <button type="button" id="opnameStartCameraBtn" class="btn btn-secondary" onclick="StockOpname.startCamera()">
+              📷 Aktifkan Kamera Scan
+            </button>
+            <button type="button" id="opnameStopCameraBtn" class="btn btn-secondary" onclick="StockOpname.stopCamera()" style="display:none;">
+              ⏹ Matikan Kamera
+            </button>
+          </div>
+        </div>
+
+        <!-- Manual Barcode Input -->
+        <div id="opnameManualInputArea" class="form-group mb-3">
+          <label class="form-label">Scan Barcode / Ketik Kode (tekan Enter):</label>
+          <div class="search-input-wrapper">
+            <svg class="search-icon-left" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect><path d="M14 14h3v3h3v-3h-3v-3h-3z"></path>
+            </svg>
+            <input type="text" id="opnameBarcodeInput" class="pos-search-input"
+              placeholder="Scan barcode atau ketik kode barang lalu Enter..."
+              autocomplete="off"
+              onkeydown="StockOpname.handleManualInput(event)">
+          </div>
+          <span class="text-xs text-muted">Setiap scan menambah +1 ke jumlah fisik produk tersebut.</span>
+        </div>
+
+        <!-- Scanned Items Table -->
+        <div class="table-container" style="max-height:320px; overflow-y:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-num">#</th>
+                <th>Nama Produk</th>
+                <th class="text-center">Stok Sistem</th>
+                <th class="text-center">Stok Fisik (Edit)</th>
+                <th class="text-center">Selisih</th>
+              </tr>
+            </thead>
+            <tbody id="opnameScanTableBody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="StockOpname.closeScannerModal()">Tutup</button>
+        <button type="button" class="btn btn-secondary" onclick="StockOpname.saveOpname(false)">💾 Simpan Draft</button>
+        <button type="button" class="btn btn-danger" onclick="if(confirm('Selesaikan opname dan terapkan penyesuaian stok ke sistem?')) StockOpname.saveOpname(true)">
+          ✅ Selesai &amp; Terapkan Penyesuaian Stok
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: DETAIL OPNAME -->
+  <div id="opnameDetailModal" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3 id="opnameDetailTitle">Detail Stock Opname</h3>
+        <button type="button" class="modal-close" onclick="StockOpname.closeDetailModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="opnameDetailBody">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="StockOpname.closeDetailModal()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== TOAST NOTIFICATIONS CONTAINER ==================== -->
   <div id="toastContainer" class="toast-container"></div>
 
@@ -1180,7 +1570,9 @@
 
   <!-- 2. SheetJS Local Vendor Bundle (Zero network needed) -->
   <script src="vendor/xlsx.full.min.js"></script>
-  <!-- 3. Core POS Modules -->
+  <!-- 3. ZXing Barcode Library (multi-browser camera scanner) -->
+  <script src="vendor/zxing.min.js"></script>
+  <!-- 4. Core POS Modules -->
   <script src="js/db.js"></script>
   <script src="js/state.js"></script>
   <script src="js/printer.js?v=20261123.9"></script>
@@ -1190,7 +1582,11 @@
   <script src="js/transactions.js"></script>
   <script src="js/excel.js"></script>
   <script src="js/backup.js"></script>
-  <script src="js/app.js?v=20261123.2"></script>
+  <script src="js/kasir.js"></script>
+  <script src="js/opname.js"></script>
+  <script src="js/scanner.js"></script>
+  <script src="js/pos-scanner.js"></script>
+  <script src="js/app.js?v=20261125.2"></script>
 </body>
 
 </html>
